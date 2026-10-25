@@ -1,0 +1,1028 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SuperSamba">
+<meta name="theme-color" content="#1D5640">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<script>window.SAMBA_PWA=true</script>
+<style>html{color-scheme:light}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head><body>
+<title>SuperSamba Scorekeeper</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: sticky felt scoreboard + tabs; round view = two team panels side by side (one at a time on narrow screens). */
+:root{
+  --bg:#F2F5F3; --surface:#FFFFFF; --sunk:#E8EEEA; --ink:#17211C; --muted:#5A6A61; --line:#D3DCD6;
+  --felt:#1D5640; --felt-2:#174634; --felt-ink:#EEF6F1; --felt-muted:#A9C7B8;
+  --team-a:#2362A8; --team-b:#B3363F; --team-c:#6B4A9B; --suit-red:#B8352A; --suit-black:#1E2723;
+  --good:#24774A; --good-bg:#DDF0E4; --warn:#9A6411; --warn-bg:#F7EAD2;
+  --display:"Avenir Next","Avenir","Segoe UI",system-ui,-apple-system,sans-serif;
+  --body:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;
+  --num:"DIN Alternate","Avenir Next Condensed","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1512; --surface:#16201B; --sunk:#1D2923; --ink:#E4EDE8; --muted:#94A69C; --line:#2A3832;
+  --felt:#123A2B; --felt-2:#0F3123; --felt-ink:#E6F2EB; --felt-muted:#8FB3A1;
+  --team-a:#72A9EE; --team-b:#F08088; --team-c:#B79BE6; --suit-red:#EC6A5D; --suit-black:#C9D6CF;
+  --good:#5CC48A; --good-bg:#183A27; --warn:#E3B05B; --warn-bg:#3A2E18; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1512; --surface:#16201B; --sunk:#1D2923; --ink:#E4EDE8; --muted:#94A69C; --line:#2A3832;
+  --felt:#123A2B; --felt-2:#0F3123; --felt-ink:#E6F2EB; --felt-muted:#8FB3A1;
+  --team-a:#72A9EE; --team-b:#F08088; --team-c:#B79BE6; --suit-red:#EC6A5D; --suit-black:#C9D6CF;
+  --good:#5CC48A; --good-bg:#183A27; --warn:#E3B05B; --warn-bg:#3A2E18; color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 var(--body);-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--felt)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;touch-action:manipulation}
+:focus-visible{outline:3px solid var(--team-a);outline-offset:2px}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums}
+.gutter{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* ---------- scoreboard ---------- */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--felt);color:var(--felt-ink);box-shadow:0 1px 0 var(--felt-2)}
+.board{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding-block:10px 6px}
+.bt{display:flex;flex-direction:column;min-width:0}
+.bt.right{align-items:flex-end;text-align:right}.bt.mid{align-items:center;text-align:center}
+.board.n3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.bt .bsub{font:600 12px/1.3 var(--display);color:var(--felt-muted);white-space:nowrap}
+.bt .nm{font:600 13px/1.2 var(--display);letter-spacing:.06em;text-transform:uppercase;color:var(--felt-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:flex;gap:6px;align-items:center}
+.bt .nm i{width:9px;height:9px;border-radius:50%;flex:none}
+.bt.a .nm i{background:var(--team-a)} .bt.b .nm i{background:var(--team-b)} .bt.c .nm i{background:var(--team-c)}
+.bt .tot{font:700 clamp(26px,5vw,40px)/1.05 var(--num);font-variant-numeric:tabular-nums}
+.lead{text-align:center;font:600 13px/1.3 var(--display);color:var(--felt-muted)}
+@media (max-width:520px){.lead{font-size:11px}.bt .nm{font-size:11px}}
+.lead b{display:block;font:700 18px/1.2 var(--num);color:var(--felt-ink)}
+.tabs{display:flex;gap:4px;overflow-x:auto;padding-block:4px 0;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:none;border:0;background:transparent;color:var(--felt-muted);padding:10px 14px 11px;border-radius:10px 10px 0 0;font:600 14px var(--display);white-space:nowrap}
+.tab[aria-selected="true"]{background:var(--bg);color:var(--ink)}
+.tab.add{color:var(--felt-ink)}
+.tab .sep{display:inline-block;width:1px}
+
+main{padding-block:18px 48px;max-width:1240px;margin:0 auto}
+
+/* ---------- round view ---------- */
+.rhead{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-bottom:14px}
+.rhead h1{font:700 26px/1.1 var(--display);margin:0;letter-spacing:-.01em}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;font:600 12.5px/1.2 var(--display);background:var(--sunk);color:var(--muted);white-space:nowrap}
+.chip.ok{background:var(--good-bg);color:var(--good)}
+.chip.no{background:var(--warn-bg);color:var(--warn)}
+.ghost{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 12px;font-weight:600;color:var(--muted)}
+.ghost.danger{color:var(--suit-red)}
+.spacer{flex:1}
+
+.seg{display:none;background:var(--sunk);border-radius:12px;padding:4px;gap:4px;margin-bottom:12px}
+.seg button{flex:1;border:0;background:transparent;border-radius:9px;padding:10px;font:600 15px var(--display);color:var(--muted);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+@media (max-width:860px){.seg{display:flex}.cols{grid-template-columns:1fr}.cols>.panel:not(.show){display:none}}
+.cols.n3{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:1100px){.seg.n3{display:flex}.cols.n3{grid-template-columns:1fr}.cols.n3>.panel:not(.show){display:none}}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;min-width:0}
+.ptop{padding:14px 16px 12px;border-top:5px solid var(--tc);display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:end}
+.panel.a{--tc:var(--team-a)} .panel.b{--tc:var(--team-b)} .panel.c{--tc:var(--team-c)}
+.ptop h2{margin:0;font:700 19px/1.2 var(--display);min-width:0;overflow-wrap:anywhere}
+.ptop .rt{font:700 34px/1 var(--num);font-variant-numeric:tabular-nums;color:var(--tc);text-align:right}
+.ptop .sub{font-size:12.5px;color:var(--muted)}
+.ptop .sub.r{text-align:right}
+.reqs{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+
+.sec{border-top:1px solid var(--line);padding:12px 16px 14px}
+.sec h3{margin:0 0 8px;font:700 11.5px/1 var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between}
+.sec h3 span{letter-spacing:0;text-transform:none;font:600 13px var(--num);color:var(--ink)}
+.rows{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);min-height:48px}
+.row:last-child{border-bottom:0}
+.row .main{border:0;background:transparent;text-align:left;padding:0;display:flex;flex-direction:column;min-width:0}
+.row .main strong{font:600 16px/1.2 var(--display)}
+.row .main small{color:var(--muted);font-size:12.5px}
+.row .pts{font:700 18px var(--num);font-variant-numeric:tabular-nums;text-align:right}
+.row .x{border:0;background:transparent;color:var(--muted);width:36px;height:36px;border-radius:50%;font-size:20px;line-height:1}
+.row .x:active{background:var(--sunk)}
+.empty{color:var(--muted);font-size:13.5px;padding:6px 0 4px}
+
+.card{width:34px;height:44px;border-radius:6px;border:1.5px solid var(--line);background:var(--surface);display:grid;place-items:center;font:700 14px/1 var(--display);flex:none;position:relative}
+.card.red{color:var(--suit-red);background:color-mix(in srgb,var(--suit-red) 7%,var(--surface));border-color:color-mix(in srgb,var(--suit-red) 45%,var(--line))}
+.card.black{color:var(--suit-black)}
+.card.samba{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,var(--line))}
+.card.super{background:var(--good);color:var(--surface);border-color:var(--good)}
+.card.wild{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
+.card.sevens{color:var(--team-a)}
+.card{width:40px;height:54px;flex-direction:column;display:flex;align-items:center;justify-content:center;gap:1px;box-shadow:0 1px 0 var(--line)}
+.card b{font:700 15px/1 var(--display)}
+.card i{font-style:normal;font:600 9.5px/1 var(--display);letter-spacing:.04em;text-transform:uppercase;opacity:.85}
+.card i.sr,.card i.sb{font-size:17px;opacity:1;text-transform:none}
+.card i.sr{color:var(--suit-red)} .card i.sb{color:var(--suit-black)}
+.card.super i.sr,.card.super i.sb{background:var(--surface);border-radius:4px;padding:1px 3px;font-size:14px}
+.card.mini{width:30px;height:40px;border-radius:5px;box-shadow:none}
+.card.mini b{font-size:11.5px}.card.mini i{font-size:8px}.card.mini i.sr,.card.mini i.sb{font-size:13px}
+.card.super.mini i.sr,.card.super.mini i.sb{font-size:11px;padding:0 2px}
+.run{display:inline-flex;gap:3px;padding:3px;border:1.5px solid var(--good);border-radius:8px;flex:none;align-self:center}
+.run.super{background:var(--good)}
+.run .pc{width:28px;height:42px;border-radius:5px;background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.run .pc b{font:700 13px/1 var(--display)}
+.run .pc i{font-style:normal;font-size:14px;line-height:1}
+.pc.sr{color:var(--suit-red)} .pc.sb{color:var(--suit-black)} .pc.sn{color:var(--good)}
+.run.mini{padding:2px;gap:2px;border-radius:6px}
+.run.mini .pc{width:21px;height:32px;border-radius:4px}
+.run.mini .pc b{font-size:10.5px} .run.mini .pc i{font-size:11px}
+.opt:disabled{opacity:.4}
+.card.r3{margin-left:auto;margin-right:14px;overflow:visible}
+.card.r3 em{position:absolute;bottom:-4px;right:-19px;font:700 11px/1 var(--num);font-style:normal;background:var(--suit-red);color:#fff;border-radius:999px;padding:3px 5px;border:2px solid var(--surface)}
+.add.r3add{margin-left:auto;color:var(--suit-red);border-color:color-mix(in srgb,var(--suit-red) 55%,var(--line));background:color-mix(in srgb,var(--suit-red) 6%,transparent);display:inline-flex;align-items:center;gap:3px}
+.add.r3add i{font-style:normal}
+.rchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.rchip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px;font:600 14px var(--display);color:var(--muted)}
+.rchip[aria-pressed="true"]{background:var(--felt);border-color:var(--felt);color:var(--felt-ink)}
+.tlnote{margin:0 0 10px;color:var(--muted);font-size:13.5px}
+.tlempty{padding:10px 0}
+table.tl{margin-top:12px}
+table.tl td{vertical-align:middle}
+table.tl td:first-child{font:600 14px var(--num)}
+table.tl td small{display:block;font:500 11.5px var(--display);color:var(--muted)}
+table.tl td:nth-child(2){font:600 14px var(--display);text-align:left}
+table.tl td:nth-child(3){text-align:left;font:500 14px var(--display)}
+table.tl th:nth-child(2),table.tl th:nth-child(3){text-align:left}
+.tlwhat{display:inline-flex;align-items:center;gap:10px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:currentColor;margin-right:6px;vertical-align:middle}
+tr.lc td{background:color-mix(in srgb,var(--warn-bg) 60%,transparent)}
+.lcchip{background:var(--warn-bg);color:var(--warn)}
+.card.outc{background:var(--good);color:var(--surface);border-color:var(--good)}
+.card.mini.outc b{font-size:9.5px}
+.legend .ring{width:12px;height:12px;border:1.5px solid var(--ink);border-radius:50%}
+.how{display:flex;flex-direction:column;max-width:780px}
+.hownav{margin-bottom:16px}
+.hsec .hhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.hsec .hhead h2{margin:0;font:700 20px/1.2 var(--display);letter-spacing:0;text-transform:none;color:var(--ink)}
+.howbody{font-size:15.5px;line-height:1.55;max-width:68ch}
+.howbody p{margin:0 0 10px}
+.howbody ul{margin:0 0 10px;padding-left:22px;display:flex;flex-direction:column;gap:6px}
+.howbody b{font-family:var(--num);font-variant-numeric:tabular-nums}
+.howta{width:100%;min-height:240px;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:12px;font:15px/1.5 var(--body);resize:vertical}
+.howtip{margin:6px 0 0;font-size:12.5px;color:var(--muted)}
+table.howt{margin-top:8px}
+table.howt td small{display:block;font:400 12.5px var(--body);color:var(--muted);margin-left:40px}
+table.howt.narrow{max-width:320px}
+.howneed{background:var(--good-bg);border-radius:12px;padding:12px 14px;margin:4px 0 12px}
+.howneed h3{margin:0 0 6px;font:700 14px var(--display);color:var(--good)}
+.howneed ul{margin:0 0 6px;padding-left:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px 12px}
+.howneed p{margin:0;font-size:12.5px;color:var(--muted)}
+.chip.info{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.tgl{display:inline-flex;background:var(--sunk);border-radius:10px;padding:3px;gap:3px}
+.tgl button{border:0;background:transparent;border-radius:8px;padding:8px 12px;font:600 14px var(--display);color:var(--muted)}
+.tgl button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.lede.note2{margin-top:-8px;font-size:12.5px}
+.tab.themebtn{margin-left:auto;color:var(--felt-ink);display:inline-flex;gap:6px;align-items:center}
+.pgroups{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.pgroup{--tc:var(--team-a);background:color-mix(in srgb,var(--tc) 13%,var(--surface));border:1.5px solid color-mix(in srgb,var(--tc) 45%,transparent);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.pgroup.b{--tc:var(--team-b)}.pgroup.c{--tc:var(--team-c)}
+.pgroup .ngin{border-color:color-mix(in srgb,var(--tc) 30%,var(--line))}
+.pgroup .ngin.tn{font-weight:700;color:var(--tc)}
+.done{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.adds.above{margin:0 0 6px}
+.rhead h1 .of{font-weight:500;color:var(--muted);font-size:.7em}
+.suits{grid-template-columns:repeat(4,1fr)}
+.opt.suit strong{font-size:30px;line-height:1}
+
+.adds{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.add{border:1.5px dashed var(--line);background:transparent;border-radius:10px;padding:9px 12px;font:600 14px var(--display);color:var(--ink);min-height:44px}
+.add:active{background:var(--sunk)}
+
+.other{display:grid;grid-template-columns:1fr auto;gap:10px 12px;align-items:center}
+.other label,.other .lbl{font-weight:600}
+.other .hint{display:block;font-weight:400;font-size:12.5px;color:var(--muted)}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.stepper button{border:0;background:var(--sunk);width:44px;height:44px;font-size:22px;line-height:1}
+.stepper output{min-width:46px;text-align:center;font:700 18px var(--num)}
+.tog{border:1px solid var(--line);background:var(--sunk);border-radius:999px;padding:0 16px;height:44px;font:600 14px var(--display);color:var(--muted);min-width:104px}
+.tog[aria-pressed="true"]{background:var(--good);border-color:var(--good);color:#fff}
+.tablept{display:inline-flex;align-items:center;gap:6px}
+.tablept .minus{font:700 20px var(--num);color:var(--suit-red)}
+.tablept input[data-k=hand]{color:var(--suit-red)}
+.tablept input{width:104px;height:44px;border:1px solid var(--line);border-radius:12px;background:var(--surface);text-align:right;padding:0 12px;font:700 18px var(--num);font-variant-numeric:tabular-nums}
+.tablept button{width:44px;height:44px;border:1px solid var(--line);border-radius:12px;background:var(--sunk);font:700 18px var(--num)}
+.tablept button.neg{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
+
+/* ---------- picker sheet ---------- */
+.sheet-wrap{position:fixed;inset:0;z-index:20;background:rgba(8,16,12,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom,0px))}
+@media (min-width:700px){.sheet-wrap{align-items:center}}
+.sheet{background:var(--surface);border-radius:18px;width:min(560px,100%);max-height:88vh;overflow:auto;padding:18px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.sheet h2{margin:0 0 4px;font:700 20px var(--display)}
+.sheet p.lede{margin:0 0 14px;color:var(--muted);font-size:13.5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.opt{border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 8px;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.opt strong{font:700 19px var(--display)}
+.opt small{font:600 12.5px var(--num);color:var(--muted)}
+.opt[aria-pressed="true"]{border-color:var(--tc,var(--team-a));background:var(--sunk);box-shadow:inset 0 0 0 1px var(--tc,var(--team-a))}
+.opt.red strong{color:var(--suit-red)}
+.opt.wide{grid-column:span 2}
+.sheet .subhead{font:700 11.5px var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:16px 0 8px}
+.wildrow{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center}
+.wildrow > div{display:flex;align-items:center;gap:10px;font-weight:600}
+.preview{margin-top:16px;padding:12px 14px;background:var(--sunk);border-radius:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13.5px;color:var(--muted)}
+.preview b{font:700 22px var(--num);color:var(--ink)}
+.preview.bad{background:var(--warn-bg);color:var(--warn)}
+.actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.btn{border:0;border-radius:12px;padding:0 18px;height:46px;font:700 15px var(--display);background:var(--sunk);color:var(--ink)}
+.btn.primary{background:var(--felt);color:var(--felt-ink)}
+.btn.danger{background:transparent;color:var(--suit-red);border:1px solid var(--line)}
+.btn:disabled{opacity:.45}
+
+/* ---------- summary ---------- */
+.sumhead{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;margin-bottom:16px}
+.sumhead h1{margin:0;font:700 26px var(--display)}
+.sumhead p{margin:0;color:var(--muted)}
+.block{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:18px;min-width:0}
+.block h2{margin:0 0 12px;font:700 13px var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.tscroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font:700 11.5px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+th:first-child,td:first-child{text-align:left}
+td{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:16px}
+td:first-child{font-family:var(--display);font-weight:600;font-size:14.5px}
+tr.total td{font-weight:700;border-bottom:0;border-top:2px solid var(--ink)}
+.ca{color:var(--team-a)} .cb{color:var(--team-b)} .cc{color:var(--team-c)}
+.pos{color:var(--good)} .negc{color:var(--suit-red)}
+.twocol{display:grid;grid-template-columns:3fr 2fr;gap:18px}
+@media (max-width:860px){.twocol{grid-template-columns:1fr}}
+.chart svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:3px;border-radius:2px}
+
+/* ---------- rules / games ---------- */
+.forms{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+.field{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line)}
+.field:last-child{border-bottom:0}
+.field label{font-weight:600}
+.field label small{display:block;font-weight:400;color:var(--muted);font-size:12.5px}
+.field input{width:100px;height:42px;border:1px solid var(--line);border-radius:10px;background:var(--surface);text-align:right;padding:0 10px;font:700 17px var(--num);font-variant-numeric:tabular-nums}
+.field input.name{width:min(220px,48vw);text-align:left;font:600 16px var(--display)}
+.note{color:var(--muted);font-size:13.5px;max-width:68ch}
+.note p{margin:0 0 8px}
+.games{display:flex;flex-direction:column}
+.game{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.game:last-child{border-bottom:0}
+.game .gn{font:600 16px var(--display)}
+.game .gm{font-size:13px;color:var(--muted)}
+.game .ga{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.badge{font:700 11px var(--display);letter-spacing:.06em;text-transform:uppercase;color:var(--good);margin-left:6px}
+.ngrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:520px){.ngrid{grid-template-columns:1fr}}
+.ngteam{border:1px solid var(--line);border-top:4px solid var(--tc);border-radius:12px;padding:10px 12px 12px;margin:0;display:flex;flex-direction:column;gap:8px;min-width:0}
+.ngteam.a{--tc:var(--team-a)}.ngteam.b{--tc:var(--team-b)}.ngteam.c{--tc:var(--team-c)}.ngteam.solo{--tc:var(--felt)}
+.modeseg{display:flex;background:var(--sunk);border-radius:12px;padding:4px;gap:4px;margin-bottom:14px}
+.modeseg button{flex:1;border:0;background:transparent;border-radius:9px;padding:10px 6px;font:600 14px var(--display);color:var(--muted)}
+.modeseg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.ngrid.solo{grid-template-columns:1fr}
+.ngteam legend{font:700 12px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0 4px}
+.ngin{height:44px;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:0 12px;font:600 16px var(--display);width:100%}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;z-index:30;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(16px);opacity:.6}}}
+</style>
+
+<div class="top">
+  <div class="board gutter" id="board"></div>
+  <div class="tabs gutter" id="tabs" role="tablist"></div>
+</div>
+<main class="gutter" id="view"></main>
+<div class="sheet-wrap" id="sheetWrap" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+"use strict";
+/* ================= scoring model (matches the spreadsheet) ================= */
+const RANKS=['4','5','6','7','8','9','10','J','Q','K','A'];
+const SAMBAS=['4-A','8-A','7-K','6-Q','5-J','4-10'];
+const TYPES=['samba','wild','sevens','red','black'];
+const HOUSE_RULES={
+  bonus:{superSamba:3000,samba:2000,wild:2000,sevens:2000,sevensExtra:500,red:500,black:300,red3:100,draw30:100,out:2000},
+  cards:{low:5,mid:10,ace:20,two:20,joker:50},
+  req:{superSamba:1,samba:1,wild:1,sevens:1,red:3,black:1},
+  maxWild:3,
+  rounds:3,
+  draw:3,
+  meldStart:60,
+  meldStep:30,
+  black3:'exact'
+};
+const meldFor=(R,ri)=>(Number(R.meldStart)||0)+(Number(R.meldStep)||0)*ri;
+const passDir=ri=>ri%2===0?'left':'right';
+const SUITS={S:{sym:'♠',name:'Spades',red:false},H:{sym:'♥',name:'Hearts',red:true},D:{sym:'♦',name:'Diamonds',red:true},C:{sym:'♣',name:'Clubs',red:false}};
+const clone=o=>JSON.parse(JSON.stringify(o));
+function cardVal(r,R){if(r==='A')return R.cards.ace;if(['8','9','10','J','Q','K'].includes(r))return R.cards.mid;return R.cards.low}
+function sambaCards(range){const [a,b]=range.split('-');return RANKS.slice(RANKS.indexOf(a),RANKS.indexOf(b)+1)}
+function canastaScore(c,R){
+  switch(c.type){
+    case 'samba':{const pts=sambaCards(c.range).reduce((s,r)=>s+cardVal(r,R),0);return{pts,bonus:c.range==='4-A'?R.bonus.superSamba:R.bonus.samba}}
+    case 'wild':return{pts:(7-c.jokers)*R.cards.two+c.jokers*R.cards.joker,bonus:R.bonus.wild};
+    case 'sevens':return{pts:7*cardVal('7',R),bonus:R.bonus.sevens};
+    case 'red':return{pts:7*cardVal(c.rank,R),bonus:R.bonus.red};
+    case 'black':return{pts:c.twos*R.cards.two+c.jokers*R.cards.joker+(7-c.twos-c.jokers)*cardVal(c.rank,R),bonus:R.bonus.black};
+  }
+  return{pts:0,bonus:0};
+}
+function scoreList(T,R){let n7=0;return T.canastas.map(c=>{const s=canastaScore(c,R);if(c.type==='sevens'){n7++;if(n7>1)s.bonus=R.bonus.sevensExtra;s.extra=n7>1}return s})}
+function teamScore(T,R){
+  const by={samba:0,wild:0,sevens:0,red:0,black:0};let cards=0,bonus=0;
+  const SL=scoreList(T,R);T.canastas.forEach((c,i)=>{const s=SL[i];by[c.type]+=s.pts+s.bonus;cards+=s.pts;bonus+=s.bonus});
+  const red3=(T.red3||0)*R.bonus.red3, draw30=(Number(T.draw30)||0)*R.bonus.draw30, out=T.out?R.bonus.out:0, table=(Number(T.table)||0)-(Number(T.hand)||0);
+  const canasta=cards+bonus;
+  return{by,cards,bonus,canasta,red3,draw30,out,table,total:canasta+red3+draw30+out+table};
+}
+function reqCounts(T){
+  const n={superSamba:0,samba:0,wild:0,sevens:0,red:0,black:0};
+  for(const c of T.canastas){if(c.type==='samba'){c.range==='4-A'?n.superSamba++:n.samba++}else n[c.type]++}
+  return n;
+}
+const REQ_LABEL={superSamba:'Super Samba',samba:'Samba',wild:'Wild',sevens:"7s",red:'Red',black:'Black'};
+
+/* ================= storage ================= */
+const KEY='samba-scorekeeper-v1';
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+const emptyTeam=()=>({canastas:[],red3:0,draw30:0,out:false,table:0,hand:0});
+const emptyRound=(n)=>({teams:Array.from({length:n||2},()=>emptyTeam())});
+const LET='abc',TV=['--team-a','--team-b','--team-c'];
+const nT=g=>g.players.length;
+const isPair=(g,i)=>g.players[i].length>1&&g.players[i].filter(x=>String(x).trim()).length!==1;
+const vb=(g,i,pl,sg)=>isPair(g,i)?pl:sg;
+const modeOf=g=>g.players.length===2&&g.players[0].length===2?'teams':String(g.players.length);
+function ranking(arr){const idx=arr.map((v,i)=>i).sort((a,b)=>arr[b]-arr[a]);const top=idx[0],sec=idx[1];return{top,sec,margin:arr[top]-arr[sec],tied:arr[top]===arr[sec]}}
+function leaderOf(arr){const r=ranking(arr);return r.tied?null:r.top}
+const SIDE_COLOR=['Blue','Red','Purple'];
+const teamName=(pl,i,custom)=>(custom&&String(custom).trim())||pl.map(s=>String(s||'').trim()).filter(Boolean).join(' & ')||(pl.length>1?SIDE_COLOR[i]+' team':'Player '+(i+1));
+function setPlayers(g,players,tnames){g.players=players.map(p=>p.map(x=>x||''));g.teamNames=g.players.map((p,i)=>((tnames||g.teamNames||[])[i]||''));g.names=g.players.map((p,i)=>teamName(p,i,p.length>1?g.teamNames[i]:''))}
+function newGame(players,rules,tnames){
+  const R=normRules(rules);
+  const pl=players||[['',''],['','']];
+  const g={id:uid(),created:Date.now(),rules:R,rounds:Array.from({length:Math.max(1,R.rounds||3)},()=>emptyRound(pl.length))};
+  setPlayers(g,pl,tnames);return g;
+}
+function normRules(r){const H=clone(HOUSE_RULES),o=Object.assign(H,clone(r||{}));for(const k of ['bonus','cards','req'])o[k]=Object.assign(clone(HOUSE_RULES[k]),(r&&r[k])||{});return o}
+function migrate(g){
+  g.rules=normRules(g.rules);
+  if(!Array.isArray(g.players)||!g.players.length){const n=g.names||['',''];g.players=n.map(x=>{const p=String(x).split(/\s*&\s*/);return[p[0]||'',p[1]||'']})}
+  // fill in anything older versions didn't save, and rebuild display names
+  setPlayers(g,g.players,Array.isArray(g.teamNames)?g.teamNames:[]);
+  (g.rounds||[]).forEach(rd=>{while(rd.teams.length<g.players.length)rd.teams.push(emptyTeam());rd.teams.forEach(t=>{t.canastas=t.canastas||[];if(t.hand==null)t.hand=0})});
+  return g;
+}
+const hasData=rd=>rd.teams.some(t=>t.canastas.length||t.red3||Number(t.draw30)||t.out||Number(t.table)||Number(t.hand));
+const playedCount=g=>g.rounds.filter(hasData).length;
+function startTab(g){let i=0;g.rounds.forEach((rd,k)=>{if(hasData(rd))i=k});return i}
+
+function sampleGame(){
+  const S=r=>({type:'samba',range:r,suit:''}),W=j=>({type:'wild',jokers:j}),SV=()=>({type:'sevens'}),RD=r=>({type:'red',rank:r}),BK=(r,t,j)=>({type:'black',rank:r,twos:t,jokers:j});
+  const T=(canastas,red3,table,out)=>({canastas,red3,draw30:0,out:!!out,table});
+  const g=newGame([['Rosa','Miguel'],['June','Walt']]);
+  g.created=Date.now()-86400000; g.sample=true;
+  g.rounds=[
+    {teams:[T([S('4-A'),S('8-A'),S('8-A'),S('8-A'),W(3),W(2),SV(),RD('10'),RD('K'),RD('J'),RD('J'),RD('4'),RD('5'),RD('A'),BK('5',1,0)],7,130),
+            T([S('4-A'),S('8-A'),S('8-A'),S('8-A'),W(3),W(4),SV(),SV(),RD('A'),RD('6'),RD('J'),RD('Q'),RD('K'),BK('5',0,1),BK('8',3,0),BK('6',2,0)],7,90)]},
+    {teams:[T([S('4-A'),S('8-A'),W(3),SV(),RD('10'),RD('6'),RD('5'),RD('6'),BK('A',0,1),BK('J',1,0)],3,220,true),
+            T([S('4-A'),S('8-A'),S('8-A'),W(2),SV(),RD('A')],4,15)]},
+    {teams:[T([S('4-A'),S('7-K'),S('6-Q'),S('4-10'),W(1),W(3),SV(),RD('K'),RD('A'),RD('5'),RD('Q'),RD('10'),BK('8',0,1)],6,170,true),
+            T([S('4-A'),S('8-A'),S('8-A'),W(1),W(4),RD('6'),RD('4'),RD('5'),RD('A'),BK('Q',1,0)],4,180)]}
+  ];
+  return g;
+}
+
+let store=null;
+function load(){
+  try{const raw=localStorage.getItem(KEY);if(raw){const s=JSON.parse(raw);if(s&&Array.isArray(s.games)&&s.games.length){s.games.forEach(migrate);return s}}}catch(e){}
+  const g=sampleGame();return{games:[g],currentId:g.id,defaults:clone(HOUSE_RULES)};
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}}
+store=load();
+const game=()=>store.games.find(g=>g.id===store.currentId)||store.games[0];
+
+/* ================= theme ================= */
+const THEME_KEY='supersamba-theme';let theme='auto',themeSet=false;
+try{theme=localStorage.getItem(THEME_KEY)||'auto'}catch(e){}
+function applyTheme(){const r=document.documentElement;if(theme==='auto'){if(themeSet)r.removeAttribute('data-theme')}else{r.setAttribute('data-theme',theme);themeSet=true}}
+applyTheme();
+
+/* ================= ui state ================= */
+let tab=startTab(game()); // number = round index, or 'summary' | 'rules' | 'games'
+let side=0; // which team shows on narrow screens
+let pick=null; // picker state
+let pendingConfirm=null;
+let tlRound=null; // round shown in the Summary timeline
+
+const $=s=>document.querySelector(s);
+const fmt=n=>(Number(n)||0).toLocaleString('en-US');
+const sgn=n=>(n>0?'+':n<0?'−':'')+fmt(Math.abs(n));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rangeLabel=r=>r.replace('-','–');
+
+function totals(g){
+  const per=g.rounds.map(rd=>rd.teams.map(t=>teamScore(t,g.rules).total));
+  const sum=g.players.map((_,i)=>per.reduce((s,p)=>s+(p[i]||0),0));
+  return{per,sum};
+}
+function leadText(g,sum){
+  const r=ranking(sum);
+  if(r.tied)return{tied:true,who:'Tied',by:fmt(sum[r.top]),name:'',top:r.top};
+  const name=esc(g.names[r.top]);
+  return{tied:false,who:name+' '+vb(g,r.top,'lead','leads')+' by',by:fmt(r.margin),name,top:r.top};
+}
+function roundLeadText(g,tots){const r=ranking(tots);return r.tied?'Round tied':esc(g.names[r.top])+' +'+fmt(r.margin)+' this round'}
+
+/* ================= render ================= */
+function render(){
+  const g=game();
+  if(typeof tab==='number'&&tab>=g.rounds.length)tab=g.rounds.length-1;
+  renderBoard();renderTabs();
+  const v=$('#view');
+  if(typeof tab==='number')v.innerHTML=roundView(g,tab);
+  else if(tab==='summary')v.innerHTML=summaryView(g);
+  else if(tab==='rules')v.innerHTML=rulesView(g);
+  else if(tab==='howto')v.innerHTML=howView(g);
+  else v.innerHTML=gamesView();
+  save();
+}
+function renderBoard(){
+  const g=game(),{sum}=totals(g),L=leadText(g,sum),n=nT(g),r=ranking(sum);
+  const blk=(i,pos)=>{const right=pos==='right';
+    const sub=n>2?`<span class="bsub">${sum[i]===sum[r.top]?(r.tied?'Tied for the lead':'Leading by '+fmt(r.margin)):fmt(sum[r.top]-sum[i])+' behind'}</span>`:'';
+    return `<div class="bt ${LET[i]} ${pos}"><span class="nm">${right?'':'<i></i>'}${esc(g.names[i])}${right?'<i></i>':''}</span><span class="tot" id="bt${i}">${fmt(sum[i])}</span>${sub}</div>`};
+  $('#board').className='board gutter n'+n;
+  $('#board').innerHTML=n===2?blk(0,'')+`<div class="lead" id="blead">${L.who}<b>${L.by}</b></div>`+blk(1,'right'):blk(0,'')+blk(1,'mid')+blk(2,'right');
+}
+function renderTabs(){
+  const g=game();
+  let h=g.rounds.map((r,i)=>`<button class="tab" role="tab" aria-selected="${tab===i}" data-act="tab" data-v="${i}">Round ${i+1}</button>`).join('');
+  if(g.rounds.length<(g.rules.rounds||3))h+=`<button class="tab add" data-act="addRound" aria-label="Add a round">+ Round</button>`;
+  h+=['summary','howto','rules','games'].map(k=>`<button class="tab" role="tab" aria-selected="${tab===k}" data-act="tab" data-v="${k}">${{summary:'Summary',howto:'How to play',rules:'Rules',games:'Games'}[k]}</button>`).join('');
+  h+=`<button class="tab themebtn" data-act="theme" aria-label="Appearance: ${theme}. Tap to change."><span aria-hidden="true">${{auto:'◐',dark:'☾',light:'☀'}[theme]}</span> ${{auto:'Auto',dark:'Dark',light:'Light'}[theme]}</button>`;
+  $('#tabs').innerHTML=h;
+  const sel=$('#tabs [aria-selected="true"]');if(sel&&sel.scrollIntoView)try{sel.scrollIntoView({block:'nearest',inline:'nearest'})}catch(e){}
+}
+
+function cardFace(c,small){const mini=small?' mini':'';
+  switch(c.type){
+    case 'samba':{const su=SUITS[c.suit],ink=su?(su.red?'sr':'sb'):'sn',pip=su?`<i>${su.sym}</i>`:'';const [a,z]=c.range.split('-');const sup=c.range==='4-A';
+      return `<span class="run${mini}${sup?' super':''}" title="${sup?'Super Samba':'Samba'} ${rangeLabel(c.range)}${su?' of '+su.name:''}"><span class="pc ${ink}"><b>${a}</b>${pip}</span><span class="pc ${ink}"><b>${z}</b>${pip}</span></span>`}
+    case 'wild':return `<span class="card wild${mini}"><b>W</b><i>${c.jokers}J</i></span>`;
+    case 'sevens':return `<span class="card sevens${mini}" title="7s canasta"><b>7</b><i>7s</i></span>`;
+    case 'red':return `<span class="card red${mini}" title="Red canasta of ${c.rank}s"><b>${c.rank}</b><i class="sr">♥</i></span>`;
+    case 'black':return `<span class="card black${mini}" title="Black canasta of ${c.rank}s"><b>${c.rank}</b><i class="sb">♠</i></span>`;
+  }
+}
+function canastaText(c){
+  const w=(n,s,p)=>n+' '+(n===1?s:p);
+  switch(c.type){
+    case 'samba':{const su=SUITS[c.suit]?SUITS[c.suit].name+' · ':'';return c.range==='4-A'?['Super Samba',su+'4 through A, 11 cards']:['Samba',su+rangeLabel(c.range)+', 7 in sequence']}
+    case 'wild':return['Wild canasta',c.jokers===0?'7 twos':c.jokers===7?'7 jokers':w(c.jokers,'joker','jokers')+' · '+w(7-c.jokers,'two','twos')];
+    case 'sevens':return["7s canasta",'Seven 7s'];
+    case 'red':return['Red canasta','Seven '+c.rank+'s, no wilds'];
+    case 'black':{const parts=[];if(c.twos)parts.push(w(c.twos,'two','twos'));if(c.jokers)parts.push(w(c.jokers,'joker','jokers'));return['Black canasta',(7-c.twos-c.jokers)+' × '+c.rank+' + '+parts.join(' + ')]}
+  }
+}
+
+function roundView(g,ri){
+  const rd=g.rounds[ri],R=g.rules;
+  const s=rd.teams.map(t=>teamScore(t,R));
+  const n=nT(g);if(side>=n)side=0;
+  const roundLead=roundLeadText(g,s.map(x=>x.total));
+  return `
+  <div class="rhead"><h1>Round ${ri+1}<span class="of"> of ${Math.max(R.rounds||3,g.rounds.length)}</span></h1><span class="chip" id="rlead">${roundLead}</span><span class="chip info">First meld ${fmt(meldFor(R,ri))}</span><span class="chip info">Pass hands to the ${passDir(ri)}</span><span class="spacer"></span>
+    ${g.rounds.length>1?`<button class="ghost danger" data-act="delRound" data-r="${ri}">Delete round</button>`:''}</div>
+  <div class="seg n${n}" role="group" aria-label="Choose ${n>2||!isPair(g,0)?'player':'team'}">${g.names.map((nm,i)=>`<button aria-pressed="${side===i}" data-act="side" data-v="${i}">${esc(nm)}</button>`).join('')}</div>
+  <div class="cols n${n}">${g.names.map((_,i)=>panel(g,ri,i,s[i])).join('')}</div>`;
+}
+function panel(g,ri,ti,sc){
+  const T=g.rounds[ri].teams[ti],R=g.rules,n=reqCounts(T);
+  const reqs=Object.keys(R.req).filter(k=>R.req[k]>0).map(k=>{
+    const have=n[k],need=R.req[k],ok=have>=need;
+    return `<span class="chip ${ok?'ok':'no'}">${ok?'✓':''} ${REQ_LABEL[k]}${need>1||!ok&&need>1?` ${Math.min(have,need)}/${need}`:''}</span>`;
+  }).join('');
+  const allOk=Object.keys(R.req).every(k=>n[k]>=R.req[k]);
+  const order=T.canastas.map((c,idx)=>({c,idx})).sort((a,b)=>{
+    const ta=TYPES.indexOf(a.c.type),tb=TYPES.indexOf(b.c.type);
+    if(ta!==tb)return ta-tb;
+    if(a.c.type==='samba'){const sa=a.c.range==='4-A'?0:1,sb=b.c.range==='4-A'?0:1;if(sa!==sb)return sa-sb}
+    return a.idx-b.idx;
+  });
+  const SL=scoreList(T,R);const rows=order.map(({c,idx})=>{const x=SL[idx];let [t,d]=canastaText(c);if(x.extra){t='Extra 7s canasta';d='Seven 7s'}
+    return `<div class="row">${cardFace(c)}
+      <button class="main" data-act="edit" data-t="${ti}" data-i="${idx}" aria-label="Edit ${t}"><strong>${t}</strong><small>${d} · ${fmt(x.pts)} + ${fmt(x.bonus)}</small></button>
+      <span class="pts">${fmt(x.pts+x.bonus)}</span>
+      <button class="x" data-act="del" data-t="${ti}" data-i="${idx}" aria-label="Remove ${t}">×</button></div>`}).join('');
+  const tbl=Number(T.table)||0;
+  return `<section class="panel ${LET[ti]} ${side===ti?'show':''}">
+    <div class="ptop"><h2>${esc(g.names[ti])}</h2><div class="rt" id="rt${ti}">${fmt(sc.total)}</div>
+      <div class="sub">${allOk?'Has everything needed to go out':'Needed to go out'}</div><div class="sub r">round total</div>
+      <div class="reqs">${reqs}</div>
+      ${order.length||T.red3?`<div class="done" aria-label="Completed">${order.map(({c})=>cardFace(c,true)).join('')}${T.red3?`<span class="card red mini r3" title="${T.red3} red 3s"><b>3</b><i class="sr">♥</i><em>×${T.red3}</em></span>`:''}</div>`:''}</div>
+    <div class="sec"><h3>Canastas <span id="cs${ti}">${fmt(sc.canasta)}</span></h3>
+      <div class="adds above">
+        <button class="add" data-act="add" data-t="${ti}" data-type="samba">+ Samba</button>
+        <button class="add" data-act="add" data-t="${ti}" data-type="wild">+ Wild</button>
+        <button class="add" data-act="add" data-t="${ti}" data-type="sevens">+ 7s</button>
+        <button class="add" data-act="add" data-t="${ti}" data-type="red">+ Red</button>
+        <button class="add" data-act="add" data-t="${ti}" data-type="black">+ Black</button>
+        <button class="add r3add" data-act="red3" data-t="${ti}" data-v="1" aria-label="Add a red 3"><span>+ 3</span><i>♥</i></button>
+      </div>
+      <div class="rows">${rows||'<div class="empty">No canastas yet. Add them as they go down.</div>'}</div>
+    </div>
+    <div class="sec"><h3>Other <span id="os${ti}">${fmt(sc.red3+sc.draw30+sc.out+sc.table)}</span></h3>
+      <div class="other">
+        <span class="lbl">Red 3s<span class="hint">${fmt(R.bonus.red3)} each</span></span>
+        <span class="stepper"><button data-act="red3" data-t="${ti}" data-v="-1" aria-label="One fewer red 3">−</button><output>${T.red3||0}</output><button data-act="red3" data-t="${ti}" data-v="1" aria-label="One more red 3">+</button></span>
+        <span class="lbl">Drew exactly 30<span class="hint">${fmt(R.bonus.draw30)}${isPair(g,ti)?' per player':''}</span></span>
+        <span class="stepper"><button data-act="draw30" data-t="${ti}" data-v="-1" aria-label="One fewer player drew 30">−</button><output>${Number(T.draw30)||0}</output><button data-act="draw30" data-t="${ti}" data-v="1" aria-label="One more player drew 30">+</button></span>
+        <span class="lbl">Went out<span class="hint">${fmt(R.bonus.out)}</span></span>
+        <button class="tog" aria-pressed="${!!T.out}" data-act="out" data-t="${ti}">${T.out?'Went out':'No'}</button>
+        <label for="tbl${ti}">Points on table<span class="hint">Card value of partial melds</span></label>
+        <span class="tablept">
+          <input id="tbl${ti}" inputmode="numeric" pattern="[0-9]*" data-t="${ti}" data-k="table" value="${tbl?Math.abs(tbl):''}" placeholder="0" aria-label="Points on table"></span>
+        <label for="hand${ti}">Cards left in hand<span class="hint">${isPair(g,ti)?'Both hands':'Hand'}, plus any Foot not picked up. Subtracted.</span></label>
+        <span class="tablept"><span class="minus">−</span>
+          <input id="hand${ti}" inputmode="numeric" pattern="[0-9]*" data-t="${ti}" data-k="hand" value="${Number(T.hand)?Number(T.hand):''}" placeholder="0" aria-label="Cards left in hand"></span>
+      </div></div>
+  </section>`;
+}
+
+/* ---------- summary ---------- */
+function summaryView(g){
+  const {per,sum}=totals(g),n=nT(g),TI=g.players.map((_,i)=>i),cum=TI.map(()=>0);
+  const who=(arr)=>{const r=ranking(arr);if(arr.every(v=>!v))return '<td>—</td>';return r.tied?'<td>Tied</td>':`<td class="c${LET[r.top]}">${first(g.names[r.top])} +${fmt(r.margin)}</td>`};
+  const rows=per.map((p,i)=>{TI.forEach(t=>cum[t]+=p[t]);
+    return `<tr><td>Round ${i+1}</td>${TI.map(t=>`<td class="c${LET[t]}">${fmt(p[t])}</td>`).join('')}${who(p)}${TI.map(t=>`<td>${fmt(cum[t])}</td>`).join('')}${who(cum)}</tr>`}).join('');
+  const L=leadText(g,sum);
+  // category breakdown
+  const cat=TI.map(i=>{const a={samba:0,wild:0,sevens:0,red:0,black:0,red3:0,draw30:0,out:0,table:0,total:0};
+    g.rounds.forEach(rd=>{const s=teamScore(rd.teams[i],g.rules);for(const k of TYPES)a[k]+=s.by[k];a.red3+=s.red3;a.draw30+=s.draw30;a.out+=s.out;a.table+=s.table;a.total+=s.total});return a});
+  const CL=[['samba','Sambas'],['wild','Wild canastas'],['sevens','7s canastas'],['red','Red canastas'],['black','Black canastas'],['red3','Red 3s'],['draw30','Draw 30'],['out','Going out'],['table','Table minus hand']];
+  const crow=CL.map(([k,l])=>`<tr><td>${l}</td>${TI.map(t=>`<td class="c${LET[t]}">${fmt(cat[t][k])}</td>`).join('')}</tr>`).join('');
+  const N=Math.max(g.rules.rounds||3,g.rounds.length),played=playedCount(g),over=played>=N&&hasData(g.rounds[g.rounds.length-1]);
+  const head=over?(L.tied?'Game tied':L.name+' '+vb(g,L.top,'win','wins')):(L.tied?'All square':L.name);
+  const sub=over?(L.tied?'Tied for first at '+L.by:'Final, by '+L.by+' after '+N+' rounds'):(L.tied?'Tied for first at '+L.by:'ahead by '+L.by)+' · '+played+' of '+N+' rounds played';
+  const H=TI.map(t=>`<th class="c${LET[t]}">${esc(g.names[t])}</th>`).join('');
+  const leg=TI.map(t=>`<span><i style="background:var(${TV[t]})"></i>${esc(g.names[t])}</span>`).join('');
+  return `<div class="sumhead"><h1>${head}</h1><p>${sub}</p></div>
+  <div class="block"><h2>Round by round</h2><div class="tscroll"><table>
+    <thead><tr><th>Round</th>${H}<th>Round winner</th>${TI.map(t=>`<th>${esc(g.names[t])} total</th>`).join('')}<th>Overall</th></tr></thead>
+    <tbody>${rows}<tr class="total"><td>Game</td>${TI.map(t=>`<td class="c${LET[t]}">${fmt(sum[t])}</td>`).join('')}<td></td>${TI.map(t=>`<td>${fmt(sum[t])}</td>`).join('')}${who(sum)}</tr></tbody></table></div></div>
+  <div class="twocol">
+    <div class="block chart"><h2>Running total</h2>${chart(g,per)}
+      <div class="legend">${leg}</div></div>
+    <div class="block"><h2>Where the points came from</h2><div class="tscroll"><table>
+      <thead><tr><th></th>${H}</tr></thead>
+      <tbody>${crow}<tr class="total"><td>Total</td>${TI.map(t=>`<td class="c${LET[t]}">${fmt(cat[t].total)}</td>`).join('')}</tr></tbody></table></div></div>
+  </div>
+  ${timelineBlock(g)}`;
+}
+
+/* ---------- round timeline ---------- */
+const tFmt=t=>new Date(t).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+const first=n=>esc(String(n).split(/\s*&\s*/)[0]);
+function shortLabel(c){const su=SUITS[c.suit],sy=su?su.sym:'';
+  switch(c.type){
+    case 'samba':{const [a,z]=c.range.split('-');return (c.range==='4-A'?'Super Samba ':'Samba ')+a+sy+'–'+z+sy}
+    case 'wild':return 'Wild canasta · '+c.jokers+(c.jokers===1?' joker':' jokers');
+    case 'sevens':return '7s canasta';
+    case 'red':return 'Red canasta · '+c.rank+'s';
+    case 'black':return 'Black canasta · '+c.rank+'s';
+  }}
+function roundEvents(g,ri){
+  const R=g.rules,rd=g.rounds[ri],ev=[],base=rd.teams.map(()=>0);
+  const face=(t,cls)=>`<span class="card mini ${cls||''}"><b>${t}</b></span>`;
+  rd.teams.forEach((T,ti)=>{
+    const SL=scoreList(T,R);let timed=0;const add=e=>{e.ti=ti;ev.push(e);timed+=e.pts};
+    T.canastas.forEach((c,i)=>{if(c.at)add({at:c.at,what:shortLabel(c),pts:SL[i].pts+SL[i].bonus,face:cardFace(c,true)})});
+    (T.red3At||[]).slice(0,T.red3||0).forEach(at=>add({at,what:'Red 3',pts:R.bonus.red3,face:`<span class="card red mini"><b>3</b><i class="sr">♥</i></span>`}));
+    (T.draw30At||[]).slice(0,Number(T.draw30)||0).forEach(at=>add({at,what:'Drew exactly 30',pts:R.bonus.draw30,face:face('30')}));
+    if(T.out&&T.outAt)add({at:T.outAt,what:'Went out',pts:R.bonus.out,face:face('Out','outc')});
+    if((Number(T.table)||Number(T.hand))&&T.tableAt)add({at:T.tableAt,what:'Table minus hand',pts:(Number(T.table)||0)-(Number(T.hand)||0),face:face('±')});
+    base[ti]=teamScore(T,R).total-timed;
+  });
+  ev.sort((a,b)=>a.at-b.at);
+  const sc=base.slice();let lead=leaderOf(sc);
+  ev.forEach(e=>{sc[e.ti]+=e.pts;e.score=sc.slice();const nl=leaderOf(sc);e.leadChange=nl!=null&&lead!=null&&nl!==lead;e.leader=nl;if(nl!=null)lead=nl});
+  return{ev,base};
+}
+function timelineBlock(g){
+  if(tlRound==null||tlRound>=g.rounds.length)tlRound=startTab(g);
+  const chips=g.rounds.map((r,i)=>`<button class="rchip" aria-pressed="${i===tlRound}" data-act="tl" data-v="${i}">Round ${i+1}</button>`).join('');
+  const {ev,base}=roundEvents(g,tlRound);
+  let body;
+  if(!ev.length){
+    body=`<div class="empty tlempty">${hasData(g.rounds[tlRound])?'This round was entered before times were recorded, so there is no timeline for it. Every score you enter from now on is timed.':'Nothing scored in this round yet. Each score shows up here with its time as you enter it.'}</div>`;
+  }else{
+    const changes=ev.filter(e=>e.leadChange).length,t0=ev[0].at;
+    const rows=ev.map(e=>{const mins=Math.round((e.at-t0)/60000);
+      return `<tr class="${e.leadChange?'lc':''}"><td>${tFmt(e.at)}<small>${mins?'+'+mins+' min':'start'}</small></td>
+        <td class="c${LET[e.ti]}"><span class="dot"></span>${esc(g.names[e.ti])}</td>
+        <td><span class="tlwhat">${e.face}${esc(e.what)}</span></td>
+        <td>${e.pts<0?'−':'+'}${fmt(Math.abs(e.pts))}</td>
+        <td>${e.score.map((v,t)=>`<span class="c${LET[t]}">${fmt(v)}</span>`).join(' – ')}</td>
+        <td>${e.leadChange?`<span class="chip lcchip">${esc(g.names[e.leader])} ${vb(g,e.leader,'take','takes')} the lead</span>`:''}</td></tr>`}).join('');
+    const untimed=base.some(Boolean)?` · ${base.map(fmt).join(' – ')} entered without a time`:'';
+    body=`<p class="tlnote">${changes?`Lead changed hands ${changes} time${changes>1?'s':''}`:'No lead changes'} · ${tFmt(t0)} to ${tFmt(ev.at(-1).at)}${untimed}</p>
+      ${tlChart(g,ev,base)}
+      <div class="legend">${g.names.map((nm,t)=>`<span><i style="background:var(${TV[t]})"></i>${esc(nm)}</span>`).join('')}<span><b class="ring"></b>Lead change</span></div>
+      <div class="tscroll"><table class="tl"><thead><tr><th>Time</th><th>${isPair(g,0)?'Team':'Player'}</th><th>Scored</th><th>Points</th><th>Score</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+  return `<div class="block"><h2>Round timeline</h2><div class="rchips">${chips}</div>${body}</div>`;
+}
+function tlChart(g,ev,base){
+  const W=600,H=230,P={l:56,r:16,t:14,b:30};
+  const t0=ev[0].at,t1=Math.max(ev.at(-1).at,t0+60000);
+  const mx=niceMax(Math.max(...ev.map(e=>Math.max(...e.score)),0));
+  const x=t=>P.l+(W-P.l-P.r)*((t-t0)/(t1-t0)),y=v=>P.t+(H-P.t-P.b)*(1-v/mx);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Round score over time">`;
+  for(let k=0;k<=4;k++){const v=mx*k/4,yy=y(v);s+=`<line x1="${P.l}" x2="${W-P.r}" y1="${yy}" y2="${yy}" stroke="var(--line)" stroke-width="1"/><text x="${P.l-8}" y="${yy+4}" text-anchor="end" font-size="12" fill="var(--muted)" font-family="var(--num)">${fmt(Math.round(v))}</text>`}
+  [[t0,'start'],[(t0+t1)/2,'middle'],[t1,'end']].forEach(([t,a])=>{s+=`<text x="${x(t)}" y="${H-8}" text-anchor="${a}" font-size="12" fill="var(--muted)" font-family="var(--display)">${tFmt(t)}</text>`});
+  TV.slice(0,base.length).forEach((c,ti)=>{
+    let v=base[ti],pts=[`${x(t0)},${y(v)}`];
+    ev.forEach(e=>{pts.push(`${x(e.at)},${y(v)}`);v=e.score[ti];pts.push(`${x(e.at)},${y(v)}`)});
+    pts.push(`${x(t1)},${y(v)}`);
+    s+=`<polyline points="${pts.join(' ')}" fill="none" stroke="var(${c})" stroke-width="2.5" stroke-linejoin="round"/>`;
+  });
+  ev.forEach(e=>{const c=TV[e.ti],cx=x(e.at),cy=y(e.score[e.ti]);
+    if(e.leadChange)s+=`<circle cx="${cx}" cy="${cy}" r="8" fill="none" stroke="var(--ink)" stroke-width="1.5"/>`;
+    s+=`<circle cx="${cx}" cy="${cy}" r="3.5" fill="var(${c})" stroke="var(--surface)" stroke-width="1.5"/>`});
+  return s+'</svg>';
+}
+function niceMax(v){if(v<=0)return 1000;const p=Math.pow(10,Math.floor(Math.log10(v)));const m=[1,2,2.5,5,10].find(x=>x*p>=v);return m*p}
+function chart(g,per){
+  const W=600,H=240,P={l:56,r:16,t:14,b:30};
+  const cum=g.players.map(()=>[0]);per.forEach(p=>cum.forEach((c,t)=>c.push(c.at(-1)+(p[t]||0))));
+  const all=[].concat(...cum);const mx=niceMax(Math.max(...all,0)),mn=Math.min(0,...all);
+  const n=per.length,x=i=>P.l+(W-P.l-P.r)*(n?i/n:0),y=v=>P.t+(H-P.t-P.b)*(1-(v-mn)/(mx-mn||1));
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Running total by round">`;
+  for(let k=0;k<=4;k++){const v=mn+(mx-mn)*k/4,yy=y(v);s+=`<line x1="${P.l}" x2="${W-P.r}" y1="${yy}" y2="${yy}" stroke="var(--line)" stroke-width="1"/><text x="${P.l-8}" y="${yy+4}" text-anchor="end" font-size="12" fill="var(--muted)" font-family="var(--num)">${fmt(Math.round(v))}</text>`}
+  for(let i=0;i<=n;i++)s+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="12" fill="var(--muted)" font-family="var(--display)">${i===0?'Start':'R'+i}</text>`;
+  TV.slice(0,cum.length).forEach((c,ti)=>{const pts=cum[ti].map((v,i)=>x(i)+','+y(v)).join(' ');
+    s+=`<polyline points="${pts}" fill="none" stroke="var(${c})" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
+    cum[ti].forEach((v,i)=>{s+=`<circle cx="${x(i)}" cy="${y(v)}" r="${i===n?5.5:3.5}" fill="var(${c})" stroke="var(--surface)" stroke-width="2"/>`});});
+  return s+'</svg>';
+}
+
+/* ---------- rules ---------- */
+function rulesView(g){
+  const R=g.rules;
+  const f=(path,label,hint)=>{const v=path.split('.').reduce((o,k)=>o[k],R);return `<div class="field"><label for="r_${path}">${label}${hint?`<small>${hint}</small>`:''}</label><input id="r_${path}" inputmode="numeric" data-rule="${path}" value="${v}"></div>`};
+  return `<div class="sumhead"><h1>Rules</h1><p>These apply to the game that is open now. Totals update as you change them.</p></div>
+  <div class="forms">
+    <div class="block"><h2>Players</h2>
+      <div class="modeseg" role="group" aria-label="Who is playing">${MODES.map(([m,l])=>`<button aria-pressed="${modeOf(g)===m}" data-act="ruleMode" data-v="${m}">${l}</button>`).join('')}</div>
+      <div class="pgroups">${g.players.map((pl,i)=>`<div class="pgroup ${LET[i]}" role="group" aria-label="${SIDE_COLOR[i]}">${pl.length>1?`<input class="ngin tn" id="tn${i}" data-tn="${i}" value="${esc(g.teamNames[i]||'')}" placeholder="Team name (optional)" autocomplete="off" aria-label="${SIDE_COLOR[i]} team name">`:''}${pl.map((v,j)=>`<input class="ngin" id="pl${i}${j}" data-pl="${i}${j}" value="${esc(v)}" placeholder="Player ${pl.length>1?j+1:i+1}" autocomplete="off" aria-label="${SIDE_COLOR[i]}, player ${j+1}">`).join('')}</div>`).join('')}</div>
+    </div>
+    <div class="block"><h2>Game setup</h2>
+      <div class="field"><label for="r_rounds">Number of rounds<small>House rule is 3</small></label><input id="r_rounds" inputmode="numeric" data-rule="rounds" value="${R.rounds}"></div>
+      ${f('draw','Cards drawn per turn','From a draw pile')}
+      ${f('meldStart','First meld in round 1','Points needed before you can lay down')}
+      ${f('meldStep','First meld goes up each round by',Array.from({length:R.rounds},(_,i)=>'R'+(i+1)+' '+fmt(meldFor(R,i))).join(' · '))}
+      <div class="field"><label>Black 3s when going out<small>Laid down as a group, no wilds</small></label><span class="tgl">${[['exact','Exactly 3'],['more','3 or more']].map(([v,l])=>`<button aria-pressed="${R.black3===v}" data-act="black3" data-v="${v}">${l}</button>`).join('')}</span></div>
+    </div>
+    <div class="block"><h2>Canasta bonuses</h2>
+      ${f('bonus.superSamba','Super Samba','4 through A, 11 cards')}${f('bonus.samba','Samba','7 cards in sequence')}${f('bonus.wild','Wild canasta','2s and jokers only')}${f('bonus.sevens','7s canasta','The first one in a round')}${f('bonus.sevensExtra','Each extra 7s canasta','Second and later in the same round')}${f('bonus.red','Red canasta','Natural, no wilds')}${f('bonus.black','Black canasta','Mixed, with wilds')}
+    </div>
+    <div class="block"><h2>Other bonuses</h2>
+      ${f('bonus.red3','Each red 3')}${f('bonus.draw30','Drawing exactly 30','Per player')}${f('bonus.out','Going out')}
+      <div class="field"><label for="r_maxWild">Most wilds in a black canasta<small>Naturals must outnumber wilds, so 3 at most</small></label><input id="r_maxWild" inputmode="numeric" data-rule="maxWild" value="${R.maxWild}"></div>
+    </div>
+    <div class="block"><h2>Card values</h2>
+      ${f('cards.low','3 through 7')}${f('cards.mid','8 through K')}${f('cards.ace','Ace')}${f('cards.two','2 (wild)')}${f('cards.joker','Joker')}
+    </div>
+    <div class="block"><h2>Needed to go out</h2>
+      ${f('req.superSamba','Super Sambas')}${f('req.samba','Sambas','Not counting the Super Samba')}${f('req.wild','Wild canastas')}${f('req.sevens','7s canastas')}${f('req.red','Red canastas')}${f('req.black','Black canastas')}
+    </div>
+    <div class="block note"><h2>How a canasta scores</h2>
+      <p>Every canasta scores its card points plus its bonus.</p>
+      <p>A Samba adds up each card in the run, so 8–A is 6 × 10 + 20 = 80. The Super Samba (4–A) is 100.</p>
+      <p>A wild canasta of 2s is 7 × 20 = 140, and each joker adds 30 more.</p>
+      <p>A black canasta counts each wild at its own value and each natural at the rank's value: 5, 5, 5, 5, 5, 5 and a 2 is 50.</p>
+    </div>
+  </div>
+  <div class="actions"><button class="btn" data-act="resetRules">Reset to house rules</button><button class="btn" data-act="saveDefault">Use these rules for new games</button></div>`;
+}
+
+/* ---------- how to play ---------- */
+// Editable sections. {tokens} are filled from the Rules tab so numbers stay in sync.
+const HOWTO=[
+ {id:'setup',title:'Setup',text:`Shuffle 6 decks together, keeping both jokers from each deck: 324 cards with 12 jokers. 2s and jokers are wild. 4s through aces are natural cards. 3s are special.
+- With four players, play as two teams of two, with partners sitting across from each other. With two or three players, everyone plays for themselves.
+- Each player pulls a stack of cards off the top, trying to grab exactly 30. Grab exactly 30 and you earn {draw30}. Score it under Drew exactly 30.
+- Deal your stack into two piles, one card at a time, until each pile has 15. If you grabbed too many, put the extras on a draw pile. If you grabbed too few, draw until both piles have 15.
+- One pile is your Foot. Set it aside face down.
+- Pass the other pile to a neighbor as their starting hand. Pass to the left in round 1, to the right in round 2, and keep alternating. The round screen shows which way.
+- The remaining cards are the draw piles. Turn the top card face up to start the discard pile.
+- The game is {rounds} rounds. The highest total after the last round wins.`},
+ {id:'turn',title:'Your turn',text:`- Draw {draw} cards from a draw pile, or take the discard pile (see below).
+- Lay down melds, or add cards to your side's melds. You can't add to an opponent's melds.
+- End your turn by discarding one card face up.
+First meld: nothing can be laid down until the first meld is worth at least the minimum for the round. It starts at {meldStart} and goes up {meldStep} each round: {meldList}.
+- On the turn you make the first meld, pick up your Foot after you discard to end your turn.
+- In a team game, one player makes the first meld for the whole team. Their partner still can't pick up their own Foot until they lay something down themselves. They pick it up after discarding on that turn.`},
+ {id:'pile',title:'The discard pile',text:`Instead of drawing, you may take from the discard pile, but only when both of these are true:
+- You can play the top card right away with two cards from your hand.
+- There are at least 7 cards beneath it.
+How to take it:
+- Take the top card and lay it down with the two cards from your hand.
+- Take the next 7 cards as well. They go into your hand only after you discard, so you can't play them this turn.
+A black 3 on top of the discard pile blocks it.`},
+ {id:'melds',title:'Melds and canastas',text:`- A group is 3 or more cards of the same rank.
+- Wild cards can be laid down on their own, but only as a wild canasta. A meld of only wild cards can never become anything else.
+- A group must always have more natural cards than wild cards, at every point while you build it. A finished black canasta can hold at most {maxWild} wild cards.
+- A sequence is 3 or more cards in a row of the same suit, with no wild cards. 4 is low and the ace is high.
+- A Samba is 7 cards in a row of one suit. Most Sambas are built 8 through ace. Keep your 4s through 7s in your hand.
+- A Super Samba is one suit running all the way from 4 to ace, 11 cards. Your side needs one to go out, and it must be the suit you declared (see Declaring your Super Samba).
+- A group of 7 cards is a canasta. A red canasta has no wild cards. A black canasta has at least one wild card.
+- Lay a canasta out as an overlapping stack so every card shows. Once it has 6 cards and needs just one more, you can collapse it into a squared stack. Put a red card on top of a red canasta and a black card on top of a black canasta. Sambas are never collapsed.
+- A wild canasta is 7 wild cards, any mix of 2s and jokers.
+- A 7s canasta is seven 7s with no wild cards.
+In a team game, one player usually keeps the team's melds in front of them. Once a group or sequence is down, either partner can add one or more cards to it on their turn.`},
+ {id:'declare',title:'Declaring your Super Samba',text:`Before your side builds its Super Samba, you declare which suit it will be. Once declared, the suit can't change.
+- To check with your partner first, ask "Can I declare?" without naming the suit.
+- Until your side declares, completed Sambas don't earn the Samba bonus. If the round ends before you declare, they count only as points on the table, at their card value. For example, you may have two Sambas on the table and be unable to finish either one into a Super Samba. Neither earns its bonus until you declare.
+- Teams usually wait until the other side has made its Super Samba, then declare so they don't fall too far behind.
+- After declaring, add your 4 through 7 of that suit to its 8–A Samba to make the Super Samba.`},
+ {id:'red3',title:'Red 3s',text:`- Never keep a red 3 in your hand. When you draw one, lay it face up in front of you right away and draw a card to replace it.
+- Each red 3 is worth {red3}. Tap + 3♥ in the app as soon as it's laid down.
+- A red 3 can never be discarded, so it's never on top of the discard pile.`},
+ {id:'black3',title:'Black 3s',text:`Black 3s are a defensive card.
+- Discarding a black 3 blocks the next player from taking the discard pile.
+- You can only lay down black 3s on the turn you go out, as a group of {black3Rule} with no wild cards.
+- A black 3 is worth 5 points.`},
+ {id:'cases',title:'Special situations',text:`Questions that come up at the table, with how we settle them.
+- Two groups of the same rank on your side's table: you may combine them into one.
+- Adding a wild card to a red canasta: it becomes a black canasta. Turn a black card to the top and change it in the app. It still needs more naturals than wilds.
+- A sequence and a group can't be joined, and two sequences can't be joined by one connecting card.
+- The draw piles run out: the round ends when the next player needs to draw. No one gets the going-out bonus.
+- You discard your last card but your side can't go out yet: you're floating. Play continues around you.`},
+ {id:'out',title:'How to go out',text:`- You always go out with a discard. Lay down what you can, then discard your last card.
+- That last discard can't be a card you could play on your side's melds.
+- In a team game you may first ask "Partner, may I go out?" Your partner's answer is binding.
+- If you discard your last card but your side doesn't have everything needed yet, you're floating. You have no cards and play continues.
+- The round ends as soon as someone goes out. If the draw piles run out first, the round ends with no going-out bonus.`}
+];
+let howEdit=null;
+function howTokens(R){return{draw:R.draw,meldStart:fmt(R.meldStart),meldStep:fmt(R.meldStep),meldList:Array.from({length:R.rounds},(_,i)=>fmt(meldFor(R,i))+' in round '+(i+1)).join(', '),black3Rule:R.black3==='more'?'3 or more black 3s':'exactly 3 black 3s',draw30:fmt(R.bonus.draw30),red3:fmt(R.bonus.red3),out:fmt(R.bonus.out),maxWild:R.maxWild,rounds:R.rounds,superSamba:fmt(R.bonus.superSamba),samba:fmt(R.bonus.samba),wild:fmt(R.bonus.wild),sevens:fmt(R.bonus.sevens),red:fmt(R.bonus.red),black:fmt(R.bonus.black)}}
+function howText(id){const own=store.howto&&store.howto[id];return own!=null?own:HOWTO.find(h=>h.id===id).text}
+function howHTML(text,R){
+  const tk=howTokens(R);const lines=esc(text).replace(/\{(\w+)\}/g,(m,k)=>tk[k]!=null?'<b>'+tk[k]+'</b>':m).split('\n');
+  let out='',inList=false;
+  for(const raw of lines){const l=raw.trim();
+    if(/^[-•]\s+/.test(l)){if(!inList){out+='<ul>';inList=true}out+='<li>'+l.replace(/^[-•]\s+/,'')+'</li>'}
+    else{if(inList){out+='</ul>';inList=false}if(l)out+='<p>'+l+'</p>'}}
+  return out+(inList?'</ul>':'');
+}
+function howSection(h,R,extra){
+  const edited=store.howto&&store.howto[h.id]!=null;
+  const body=howEdit===h.id
+    ?`<textarea id="howText" class="howta" aria-label="${h.title}">${esc(howText(h.id))}</textarea>
+      <p class="howtip">Start a line with “- ” for a bullet. Words in braces, like {red3}, fill in from the Rules tab.</p>
+      <div class="actions"><button class="btn primary" data-act="howSave" data-v="${h.id}">Save</button>${edited?`<button class="btn danger" data-act="howReset" data-v="${h.id}">Restore original</button>`:''}<span class="spacer"></span><button class="btn" data-act="howCancel">Cancel</button></div>`
+    :`<div class="howbody">${howHTML(howText(h.id),R)}</div>`;
+  return `<section class="block hsec" id="how-${h.id}"><div class="hhead"><h2>${h.title}${edited?'<span class="badge">Edited</span>':''}</h2>${howEdit===h.id?'':`<button class="ghost" data-act="howEdit" data-v="${h.id}">Edit</button>`}</div>${extra&&extra.before||''}${body}${extra&&extra.after||''}</section>`;
+}
+function howView(g){
+  const R=g.rules,H=Object.fromEntries(HOWTO.map(h=>[h.id,h]));
+  const nav=[['setup','Setup'],['turn','Your turn'],['pile','Discard pile'],['melds','Canastas'],['declare','Declaring'],['red3','Red 3s'],['black3','Black 3s'],['out','Going out'],['score','Scoring'],['cases','Special situations']]
+    .map(([id,l])=>`<button class="rchip" data-act="howJump" data-v="${id}">${l}</button>`).join('');
+  const sv=(c)=>{const x=canastaScore(c,R);return [x.pts,x.bonus]};
+  const crow=(face,name,how,c,bonusOverride)=>{const [pts,bonus]=sv(c);const b=bonusOverride!=null?bonusOverride:bonus;return `<tr><td><span class="tlwhat">${face}${name}</span><small>${how}</small></td><td>${fmt(pts)}</td><td>${fmt(b)}</td><td>${fmt(pts+b)}</td></tr>`};
+  const canTable=`<div class="tscroll"><table class="howt"><thead><tr><th>Canasta</th><th>Cards</th><th>Bonus</th><th>Total</th></tr></thead><tbody>
+    ${crow(cardFace({type:'samba',range:'4-A',suit:'H'},true),'Super Samba','4 through ace, one suit',{type:'samba',range:'4-A'})}
+    ${crow(cardFace({type:'samba',range:'8-A',suit:'S'},true),'Samba','8–A shown; 4–10 is the lowest',{type:'samba',range:'8-A'})}
+    ${crow(cardFace({type:'wild',jokers:0},true),'Wild canasta','All 2s; each joker adds '+fmt(R.cards.joker-R.cards.two),{type:'wild',jokers:0})}
+    ${crow(cardFace({type:'sevens'},true),'7s canasta','Seven 7s',{type:'sevens'})}
+    ${crow(cardFace({type:'sevens'},true),'Extra 7s canasta','Second and later in a round',{type:'sevens'},R.bonus.sevensExtra)}
+    ${crow(cardFace({type:'red',rank:'K'},true),'Red canasta','Kings shown, no wilds',{type:'red',rank:'K'})}
+    ${crow(cardFace({type:'black',rank:'K',twos:1,jokers:0},true),'Black canasta','6 kings and a 2 shown',{type:'black',rank:'K',twos:1,jokers:0})}
+  </tbody></table></div>`;
+  const need=Object.keys(R.req).filter(k=>R.req[k]>0).map(k=>`<li><b>${R.req[k]}</b> ${REQ_LABEL[k]}${k==='sevens'?' canasta':k==='superSamba'||k==='samba'?'':' canasta'}${R.req[k]>1?'s':''}</li>`).join('');
+  const needBox=`<div class="howneed"><h3>Your side needs all of these before anyone can go out</h3><ul>${need}</ul><p>The checklist at the top of each panel on the round screen tracks this for you.</p></div>`;
+  const cv=[['3 through 7',R.cards.low],['8 through K',R.cards.mid],['Ace',R.cards.ace],['2 (wild)',R.cards.two],['Joker',R.cards.joker]].map(([l,v])=>`<tr><td>${l}</td><td>${fmt(v)}</td></tr>`).join('');
+  const scoring=`<section class="block hsec" id="how-score"><div class="hhead"><h2>Scoring a round</h2></div>
+    <div class="howbody"><p>When the round ends, each side adds up:</p><ul>
+      <li>Every completed canasta and Samba: its card points plus its bonus (table above). Melds only score as canastas once they're complete, so add each one in the app when it's finished.</li>
+      <li>Red 3s: <b>${fmt(R.bonus.red3)}</b> each.</li>
+      <li>Drawing exactly 30: <b>${fmt(R.bonus.draw30)}</b> per player.</li>
+      <li>Going out: <b>${fmt(R.bonus.out)}</b> for the side that went out.</li>
+      <li>Points on table: the card value of melds that never became canastas, minus the card value of every card left in your hand. A Foot that was never picked up counts against you too, all 15 cards.</li></ul>
+      <p>After <b>${R.rounds}</b> rounds, the highest total wins. Change any of these values on the Rules tab.</p></div>
+    <div class="tscroll"><table class="howt narrow"><thead><tr><th>Card</th><th>Points</th></tr></thead><tbody>${cv}</tbody></table></div></section>`;
+  return `<div class="sumhead"><h1>How to play</h1><p>SuperSamba the way your table plays it. Tap Edit on any section to change the wording.</p></div>
+   <div class="rchips hownav">${nav}</div>
+   <div class="how">
+    ${howSection(H.setup,R)}${howSection(H.turn,R)}${howSection(H.pile,R)}
+    ${howSection(H.melds,R,{after:canTable})}
+    ${howSection(H.declare,R)}
+    ${howSection(H.red3,R)}${howSection(H.black3,R)}
+    ${howSection(H.out,R,{before:needBox})}
+    ${scoring}
+    ${howSection(H.cases,R)}
+   </div>`;
+}
+
+/* ---------- games ---------- */
+function gamesView(){
+  const list=store.games.slice().sort((a,b)=>b.created-a.created).map(g=>{const {sum}=totals(g);const cur=g.id===store.currentId;
+    return `<div class="game"><div><div class="gn">${g.names.map(esc).join(' vs ')}${cur?'<span class="badge">Open</span>':''}${g.sample?'<span class="badge" style="color:var(--muted)">Example</span>':''}</div>
+      <div class="gm num">${new Date(g.created).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})} · ${g.rounds.length} round${g.rounds.length>1?'s':''} · ${sum.map(fmt).join(' – ')}</div></div>
+      <div class="ga">${cur?'':`<button class="ghost" data-act="open" data-id="${g.id}">Open</button>`}<button class="ghost danger" data-act="delGame" data-id="${g.id}">Delete</button></div></div>`}).join('');
+  return `<div class="sumhead"><h1>Games</h1><p>Saved on this device in this browser.</p></div>
+  <div class="actions" style="margin:0 0 16px"><button class="btn primary" data-act="newGame">New game</button><button class="btn" data-act="export">Back up open game</button><label class="btn" for="importFile" style="display:inline-flex;align-items:center;cursor:pointer">Restore from backup</label><input type="file" id="importFile" accept=".json,application/json" hidden></div>
+  <div class="block"><div class="games">${list||'<div class="empty">No games saved.</div>'}</div></div>
+  <div class="block note"><h2>Keeping your games safe</h2><p>Games are stored in this browser only. Clearing Safari's website data erases them, so tap “Back up open game” now and then and keep the file in Files or iCloud Drive.</p></div>`;
+}
+
+/* ================= picker sheet ================= */
+function openPicker(ti,type,idx){
+  const g=game(),T=g.rounds[tab].teams[ti];
+  const c=idx!=null?clone(T.canastas[idx]):null;
+  if(type==='sevens'&&idx==null){T.canastas.push({type:'sevens',at:Date.now()});toast('7s canasta added');render();return}
+  pick={ti,type,idx,rank:c?c.rank:null,twos:c?c.twos:1,jokers:c?c.jokers:0,range:c?c.range:null,suit:c&&c.suit||''};
+  if(type==='black'&&!c){pick.twos=1;pick.jokers=0}
+  drawPicker();$('#sheetWrap').hidden=false;
+}
+function closePicker(){pick=null;pendingConfirm=null;$('#sheetWrap').hidden=true}
+function drawPicker(){
+  const g=game(),R=g.rules,p=pick,el=$('#sheet');
+  el.style.setProperty('--tc','var('+TV[p.ti]+')');
+  const who=esc(g.names[p.ti]);const editing=p.idx!=null;
+  let body='';
+  if(p.type==='samba'){
+    const T=g.rounds[tab].teams[p.ti];const used={};T.canastas.forEach((c,i)=>{if(c.type==='samba'&&c.suit&&i!==p.idx)used[c.suit]=(used[c.suit]||0)+1});
+    body=`<h2>${editing?'Change':'Add a'} Samba</h2><p class="lede">${who} · ${p.suit?'now tap the run':'pick the suit first'}</p><p class="lede note2">Add Sambas once your side has declared. Undeclared Sambas go under Points on table at card value.</p>
+      <div class="grid suits">${Object.entries(SUITS).map(([k,v])=>`<button class="opt suit ${v.red?'red':''}" aria-pressed="${p.suit===k}" data-act="pickSuit" data-v="${k}"><strong>${v.sym}</strong><small>${used[k]?used[k]+' done':v.name}</small></button>`).join('')}</div>
+      <div class="subhead">Run</div><div class="grid">`+
+      SAMBAS.map(r=>{const s=canastaScore({type:'samba',range:r},R);return `<button class="opt ${r==='4-A'?'wide':''}" aria-pressed="${p.range===r}" data-act="pickSet" data-v="${r}" ${p.suit?'':'disabled'}><strong>${rangeLabel(r)}</strong><small>${r==='4-A'?'Super Samba · ':''}${fmt(s.pts+s.bonus)}</small></button>`}).join('')+'</div>';
+  }else if(p.type==='wild'){
+    body=`<h2>${editing?'Change':'Add a'} wild canasta</h2><p class="lede">${who} · how many jokers?</p><div class="grid">`+
+      [0,1,2,3,4,5,6,7].map(j=>{const s=canastaScore({type:'wild',jokers:j},R);return `<button class="opt" aria-pressed="${editing&&p.jokers===j}" data-act="pickSet" data-v="${j}"><strong>${j}</strong><small>${j===0?'all 2s · ':''}${fmt(s.pts+s.bonus)}</small></button>`}).join('')+'</div>';
+  }else if(p.type==='red'){
+    body=`<h2>${editing?'Change':'Add a'} red canasta</h2><p class="lede">${who} · which rank?</p><div class="grid">`+
+      RANKS.filter(r=>r!=='7'||p.rank==='7').map(r=>{const s=canastaScore({type:'red',rank:r},R);return `<button class="opt red" aria-pressed="${p.rank===r}" data-act="pickSet" data-v="${r}"><strong>${r}</strong><small>${fmt(s.pts+s.bonus)}</small></button>`}).join('')+'</div>';
+  }else if(p.type==='black'){
+    const maxW=Math.min(R.maxWild,3),wild=p.twos+p.jokers,ok=p.rank&&wild>=1&&wild<=maxW;
+    const s=p.rank?canastaScore({type:'black',rank:p.rank,twos:p.twos,jokers:p.jokers},R):null;
+    body=`<h2>${editing?'Change':'Add a'} black canasta</h2><p class="lede">${who} · pick the rank, then the wild cards</p><div class="grid">`+
+      RANKS.map(r=>`<button class="opt" aria-pressed="${p.rank===r}" data-act="pickRank" data-v="${r}"><strong>${r}</strong></button>`).join('')+`</div>
+      <div class="subhead">Wild cards</div>
+      <div class="wildrow">
+        <div>2s <span class="stepper"><button data-act="pickW" data-k="twos" data-v="-1" aria-label="One fewer 2">−</button><output>${p.twos}</output><button data-act="pickW" data-k="twos" data-v="1" aria-label="One more 2">+</button></span></div>
+        <div>Jokers <span class="stepper"><button data-act="pickW" data-k="jokers" data-v="-1" aria-label="One fewer joker">−</button><output>${p.jokers}</output><button data-act="pickW" data-k="jokers" data-v="1" aria-label="One more joker">+</button></span></div>
+      </div>
+      <div class="preview ${!ok&&p.rank?'bad':''}">${!p.rank?'<span>Pick a rank to see the score</span><b>—</b>':ok?`<span>${7-wild} × ${p.rank} + ${wild} wild · ${fmt(s.pts)} + ${fmt(s.bonus)}</span><b>${fmt(s.pts+s.bonus)}</b>`:`<span>${wild<1?'A black canasta needs at least 1 wild card. With none, add it as Red.':(wild>3?'A canasta needs more naturals than wilds, so 3 wild cards at most.':'Up to '+R.maxWild+' wild cards allowed. Change the limit on the Rules tab.')}</span><b>—</b>`}</div>`;
+    body+=`<div class="actions"><button class="btn primary" data-act="pickSave" ${ok?'':'disabled'}>${editing?'Save':'Add canasta'}</button>${editing?'<button class="btn danger" data-act="pickDel">Remove</button>':''}<span class="spacer"></span><button class="btn" data-act="pickClose">Cancel</button></div>`;
+    el.innerHTML=body;return;
+  }else if(p.type==='sevens'){
+    body=`<h2>7s canasta</h2><p class="lede">${who} · seven 7s, ${fmt(canastaScore({type:'sevens'},R).pts+R.bonus.sevens)}</p>`;
+  }
+  body+=`<div class="actions">${editing?'<button class="btn danger" data-act="pickDel">Remove</button>':''}<span class="spacer"></span><button class="btn" data-act="pickClose">Cancel</button></div>`;
+  el.innerHTML=body;
+}
+function commitPick(c){
+  const T=game().rounds[tab].teams[pick.ti];
+  if(pick.idx!=null){const old=T.canastas[pick.idx];if(old.at)c.at=old.at;T.canastas[pick.idx]=c}else{c.at=Date.now();T.canastas.push(c)}
+  closePicker();render();
+}
+
+/* ---------- new game sheet ---------- */
+let ngMode='teams',ngNames=null;
+const MODES=[['teams','2 teams of 2'],['3','3 players'],['2','2 players']];
+const NG_SHAPE={teams:[2,2],'3':[1,1,1],'2':[1,1]};
+function ngRead(){if(!$('#ngRounds'))return;const flat=ngNames?ngNames.flat.slice():[];let k=0;
+  NG_SHAPE[ngMode].forEach((cnt,i)=>{for(let j=0;j<cnt;j++){const el=$('#ng'+i+j);flat[k++]=el?el.value:''}});
+  const tn=(ngNames&&ngNames.tn||[]).slice();[0,1,2].forEach(i=>{const el=$('#ngt'+i);if(el)tn[i]=el.value});
+  ngNames={flat,tn,rounds:$('#ngRounds').value,sevens:$('#ngSevens').value,meld:$('#ngMeld').value}}
+function newGameSheet(mode){
+  const g=game(),R=normRules(store.defaults||HOUSE_RULES);pick=null;pendingConfirm=null;
+  if(!mode){ngMode=modeOf(g);ngNames=null}else{ngRead();ngMode=mode}
+  // names to show: what was typed, else the current game's players when the shape matches
+  if(!ngNames)ngNames={flat:[].concat(...g.players),tn:(g.teamNames||[]).slice()};const all=ngNames.flat;
+  let k=0;const shape=NG_SHAPE[ngMode];
+  const val=()=>esc(all[k++]||'');
+  const solo=ngMode!=='teams';
+  const groups=shape.map((cnt,i)=>`<div class="pgroup ${LET[i]}" role="group" aria-label="${SIDE_COLOR[i]}">${solo?'':`<input id="ngt${i}" class="ngin tn" placeholder="Team name (optional)" value="${esc(ngNames.tn&&ngNames.tn[i]||'')}" autocomplete="off" aria-label="${SIDE_COLOR[i]} team name">`}${Array.from({length:cnt},(_,j)=>`<input id="ng${i}${j}" class="ngin" placeholder="Player ${solo?i+1:j+1}" value="${val()}" autocomplete="off" aria-label="${SIDE_COLOR[i]}, player ${j+1}">`).join('')}</div>`).join('');
+  $('#sheet').style.removeProperty('--tc');
+  $('#sheet').innerHTML=`<h2>New game</h2><p class="lede">The current game stays saved under Games.</p>
+   <div class="modeseg" role="group" aria-label="Who is playing">${MODES.map(([m,l])=>`<button aria-pressed="${ngMode===m}" data-act="ngMode" data-v="${m}">${l}</button>`).join('')}</div>
+   ${solo?'<p class="lede">Everyone plays for themselves.</p>':''}<div class="pgroups">${groups}</div>
+   <div class="field" style="margin-top:12px"><label for="ngRounds">Number of rounds</label><input id="ngRounds" inputmode="numeric" value="${esc(ngNames&&ngNames.rounds||R.rounds||3)}"></div>
+   <div class="field"><label for="ngMeld">First meld in round 1<small>Goes up ${fmt(R.meldStep)} each round</small></label><input id="ngMeld" inputmode="numeric" value="${esc(ngNames&&ngNames.meld||R.meldStart)}"></div>
+   <div class="field"><label for="ngSevens">Bonus for each extra 7s canasta<small>First 7s canasta is ${fmt(R.bonus.sevens)}</small></label><input id="ngSevens" inputmode="numeric" value="${esc(ngNames&&ngNames.sevens||R.bonus.sevensExtra)}"></div>
+   <div class="actions"><button class="btn primary" data-act="startGame">Start game</button><span class="spacer"></span><button class="btn" data-act="pickClose">Cancel</button></div>`;
+  $('#sheetWrap').hidden=false;
+}
+/* ---------- confirm sheet ---------- */
+function confirmSheet(title,text,yes,fn){
+  pendingConfirm=fn;pick=null;
+  $('#sheet').innerHTML=`<h2>${title}</h2><p class="lede">${text}</p><div class="actions"><button class="btn primary" data-act="confirmYes">${yes}</button><span class="spacer"></span><button class="btn" data-act="pickClose">Cancel</button></div>`;
+  $('#sheetWrap').hidden=false;
+}
+let tt=null;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2000)}
+
+/* ---------- live refresh for typing ---------- */
+function refreshScores(){
+  const g=game();renderBoard();
+  if(typeof tab==='number'){const s=g.rounds[tab].teams.map(t=>teamScore(t,g.rules));
+    s.forEach((x,i)=>{$('#rt'+i).textContent=fmt(x.total);$('#os'+i).textContent=fmt(x.red3+x.draw30+x.out+x.table);$('#cs'+i).textContent=fmt(x.canasta)});
+    $('#rlead').innerHTML=roundLeadText(g,s.map(x=>x.total));}
+  save();
+}
+
+/* ================= events ================= */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');
+  if(!b){if(e.target.id==='sheetWrap')closePicker();return}
+  const a=b.dataset.act,g=game(),ti=+b.dataset.t;
+  const T=typeof tab==='number'?g.rounds[tab].teams[ti]:null;
+  switch(a){
+    case 'tab':tab=isNaN(+b.dataset.v)?b.dataset.v:+b.dataset.v;render();window.scrollTo(0,0);break;
+    case 'addRound':g.rounds.push(emptyRound(nT(g)));tab=g.rounds.length-1;render();window.scrollTo(0,0);break;
+    case 'delRound':{const r=+b.dataset.r;confirmSheet('Delete Round '+(r+1)+'?','Every score entered for this round will be removed.','Delete round',()=>{g.rounds.splice(r,1);tab=Math.max(0,r-1)});break}
+    case 'side':side=+b.dataset.v;render();break;
+    case 'add':openPicker(ti,b.dataset.type,null);break;
+    case 'edit':openPicker(ti,T.canastas[+b.dataset.i].type,+b.dataset.i);break;
+    case 'del':T.canastas.splice(+b.dataset.i,1);render();break;
+    case 'red3':{const before=T.red3||0;T.red3=Math.max(0,before+(+b.dataset.v));T.red3At=T.red3At||[];if(T.red3>before)T.red3At.push(Date.now());else if(T.red3<before)T.red3At.pop();}render();if(b.classList.contains('r3add'))toast('Red 3 added · '+T.red3+' this round');break;
+    case 'draw30':{const before=Number(T.draw30)||0;T.draw30=Math.max(0,Math.min(g.players[ti].length,before+(+b.dataset.v)));T.draw30At=T.draw30At||[];if(T.draw30>before)T.draw30At.push(Date.now());else if(T.draw30<before)T.draw30At.pop();render();break}
+    case 'out':T.out=!T.out;T.outAt=T.out?Date.now():null;if(T.out)g.rounds[tab].teams.forEach((o,k)=>{if(k!==ti){o.out=false;o.outAt=null}});render();break;
+    case 'tl':tlRound=+b.dataset.v;render();break;
+    case 'ruleMode':{const m=b.dataset.v;if(m===modeOf(g))break;const shape=NG_SHAPE[m],n=shape.length,label=MODES.find(x=>x[0]===m)[1];
+      const apply=()=>{const old=g.players,oldNames=g.names.slice(),wasPair=old.map((x,i)=>x.length>1);if(wasPair.some(Boolean))g.pairStash=clone(old);const st=g.pairStash||[];const pl=shape.map((c,i)=>c>1?(st[i]&&st[i].length>1?st[i].slice():[(old[i]&&old[i][0])||'',(old[i]&&old[i][1])||'']):[i<old.length?(wasPair[i]?(g.teamNames[i]||old[i].filter(Boolean).join(' & ')):old[i][0]):'']);
+        g.rounds.forEach(rd=>{while(rd.teams.length<n)rd.teams.push(emptyTeam());rd.teams.length=n});setPlayers(g,pl);side=0;tlRound=null};
+      const lose=g.rounds.some(rd=>rd.teams.slice(n).some(t=>hasData({teams:[t]})));
+      if(lose)confirmSheet('Switch to '+label+'?',esc(g.names[2])+'’s scores in this game will be removed.','Switch',apply);else{apply();render();toast('Now '+label)}break}
+    case 'theme':theme={auto:'dark',dark:'light',light:'auto'}[theme]||'auto';try{localStorage.setItem(THEME_KEY,theme)}catch(e){}applyTheme();renderTabs();break;
+    case 'black3':g.rules.black3=b.dataset.v;render();break;
+    case 'howJump':{const el=document.getElementById('how-'+b.dataset.v);if(el){const y=el.getBoundingClientRect().top+scrollY-($('.top').offsetHeight+12);window.scrollTo({top:y,behavior:'smooth'})}break}
+    case 'howEdit':howEdit=b.dataset.v;render();{const ta=$('#howText');if(ta){ta.focus();ta.scrollIntoView({block:'center'})}}break;
+    case 'howCancel':howEdit=null;render();break;
+    case 'howSave':store.howto=store.howto||{};store.howto[b.dataset.v]=$('#howText').value;howEdit=null;render();toast('Saved on this device');break;
+    case 'howReset':if(store.howto)delete store.howto[b.dataset.v];howEdit=null;render();toast('Original wording restored');break;
+    
+    case 'pickSet':{const v=b.dataset.v;
+      if(pick.type==='samba')commitPick({type:'samba',range:v,suit:pick.suit});
+      else if(pick.type==='wild')commitPick({type:'wild',jokers:+v});
+      else if(pick.type==='red')commitPick({type:'red',rank:v});break}
+    case 'pickSuit':pick.suit=pick.suit===b.dataset.v?'':b.dataset.v;drawPicker();break;
+    case 'pickRank':pick.rank=b.dataset.v;drawPicker();break;
+    case 'pickW':{const k=b.dataset.k;pick[k]=Math.max(0,Math.min(7,pick[k]+(+b.dataset.v)));drawPicker();break}
+    case 'pickSave':commitPick({type:'black',rank:pick.rank,twos:pick.twos,jokers:pick.jokers});break;
+    case 'pickDel':game().rounds[tab].teams[pick.ti].canastas.splice(pick.idx,1);closePicker();render();break;
+    case 'pickClose':closePicker();break;
+    case 'confirmYes':{const fn=pendingConfirm;closePicker();if(fn)fn();render();break}
+    case 'resetRules':g.rules=clone(HOUSE_RULES);render();toast('House rules restored');break;
+    case 'saveDefault':store.defaults=clone(g.rules);save();toast('New games will use these rules');break;
+    case 'newGame':newGameSheet();break;
+    case 'ngMode':newGameSheet(b.dataset.v);break;
+    case 'startGame':{const pl=NG_SHAPE[ngMode].map((cnt,i)=>Array.from({length:cnt},(_,j)=>($('#ng'+i+j).value||'').trim()));
+      const R=normRules(store.defaults);const sx=parseInt($('#ngSevens').value,10);if(!isNaN(sx))R.bonus.sevensExtra=Math.max(0,sx);const ms=parseInt($('#ngMeld').value,10);if(!isNaN(ms))R.meldStart=Math.max(0,ms);R.rounds=Math.max(1,Math.min(20,parseInt($('#ngRounds').value,10)||3));
+      const tns=NG_SHAPE[ngMode].map((c,i)=>{const el=$('#ngt'+i);return el?el.value.trim():''});const n=newGame(pl,R,tns);store.games.push(n);store.currentId=n.id;tab=0;side=0;tlRound=null;closePicker();render();window.scrollTo(0,0);toast('New game started');break}
+    case 'open':store.currentId=b.dataset.id;tlRound=null;tab=startTab(game());render();toast('Game opened');break;
+    case 'delGame':{const id=b.dataset.id,x=store.games.find(q=>q.id===id);confirmSheet('Delete this game?',x.names.map(esc).join(' vs ')+' will be erased from this device.','Delete game',()=>{store.games=store.games.filter(q=>q.id!==id);if(!store.games.length)store.games.push(newGame(clone(x.players),store.defaults||HOUSE_RULES));if(store.currentId===id)store.currentId=store.games[0].id});break}
+    case 'export':exportGame();break;
+  }
+});
+document.addEventListener('input',e=>{
+  const t=e.target,g=game();
+  if(t.matches('.tablept input')){const ti=+t.dataset.t,T=g.rounds[tab].teams[ti];T[t.dataset.k||'table']=parseInt(t.value.replace(/[^0-9]/g,''),10)||0;T.tableAt=Date.now();refreshScores();}
+  else if(t.dataset.rule){const v=parseInt(t.value,10);if(isNaN(v))return;const ks=t.dataset.rule.split('.');let o=g.rules;for(let i=0;i<ks.length-1;i++)o=o[ks[i]];o[ks.at(-1)]=ks[0]==='rounds'?Math.max(1,Math.min(20,v)):Math.max(0,v);renderBoard();save();}
+  else if(t.dataset.tn!=null){g.teamNames[+t.dataset.tn]=t.value;setPlayers(g,g.players);renderBoard();save();}
+  else if(t.dataset.pl!=null){const [i,j]=t.dataset.pl.split('').map(Number);g.players[i][j]=t.value;setPlayers(g,g.players);renderBoard();save();}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.rule==='rounds'){const g=game();while(g.rounds.length<g.rules.rounds)g.rounds.push(emptyRound(nT(g)));t.value=g.rules.rounds;renderTabs();save();return}
+  if(t.id==='importFile'&&t.files&&t.files[0]){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);const list=Array.isArray(d.games)?d.games:[d];let n=0;
+      list.forEach(x=>{if(x&&Array.isArray(x.rounds)&&Array.isArray(x.names)){x.id=uid();migrate(x);store.games.push(x);store.currentId=x.id;n++}});
+      if(n){tab=startTab(game());render();toast(n===1?'Game restored':n+' games restored')}else toast('That file is not a Samba backup')}catch(err){toast('That file is not a Samba backup')}};r.readAsText(t.files[0])}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheetWrap').hidden)closePicker()});
+
+function exportGame(){
+  const g=game();const data=JSON.stringify(g,null,1);
+  const name='supersamba-'+g.names.join('-vs-').replace(/[^a-z0-9-]+/gi,'_')+'-'+new Date(g.created).toISOString().slice(0,10)+'.json';
+  try{const blob=new Blob([data],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}catch(e){}
+  try{navigator.clipboard.writeText(data).then(()=>toast('Backup saved. A copy is also on the clipboard.'),()=>toast('Backup saved'))}catch(e){toast('Backup saved')}
+}
+
+/* expose scoring for checks */
+window.SambaScore={teamScore,totals,game,HOUSE_RULES};
+if(window.SAMBA_PWA&&'serviceWorker' in navigator&&/^https?:/.test(location.protocol)){try{navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}}
+render();
+})();
+</script>
+
+</body></html>
