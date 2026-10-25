@@ -28,6 +28,12 @@ The app runs in Safari and can be installed like a regular app. Installing it is
 - Removing the icon from the home screen or Dock deletes the saved games with it. Back up first.
 - Updates are automatic. Whenever the app is opened with internet, it loads the newest version from GitHub and saves it for offline use.
 
+## Run it from a download instead
+
+On a Mac or PC you can also run the app without the link. On the GitHub page, click **Code → Download ZIP**, unzip it and double-click `index.html`. It opens in any browser and works offline, but it will not update itself and cannot be installed as an app. Replace the files with a fresh download to get a new version.
+
+This does not work well on iPad or iPhone. Safari cannot install a home-screen app from a local file and offline saving is unreliable there, so use the link and **Add to Home Screen** instead.
+
 ## What's here
 
 | File | What it is |
