@@ -15,7 +15,8 @@ The service worker only registers when `window.SAMBA_PWA` is true (set in a `<sc
 ## Data
 
 - Saved in `localStorage` key `samba-scorekeeper-v1` as `{games:[...], currentId, defaults, howto}`. Keep this key so existing devices keep their games.
-- A game: `{id, created, players:[[name,name]|[name]...], teamNames, names (derived), rules, rounds:[{teams:[T,...]}], sample?}`.
+- A game: `{id, created, players:[[name,name]|[name]...], teamNames, names (derived), rules, rounds:[{teams:[T,...]}], sample?, sampleVersion?}`.
+- The example game is built once on first launch and then saved like any other game. **Bump `SAMPLE_VERSION` whenever `sampleGame()` changes**, or devices keep their old copy. `load()` replaces a saved example whose version is out of date.
 - A side `T`: `{canastas:[{type,...,at}], red3, red3At[], draw30, draw30At[], out, outAt, table, hand, tableAt}`. `at` fields are timestamps for the Summary timeline.
 - Canasta types: `samba {range:'4-A'|'8-A'|..., suit:'S'|'H'|'D'|'C'}`, `wild {jokers}`, `sevens`, `red {rank}`, `black {rank, twos, jokers}`.
 - `migrate(g)` rebuilds every field with a known type and range (`cleanRules`, `cleanCanasta`, `cleanTeam`, `cleanPlayers`) and fills in fields that older saved games lack. Extend it whenever the data shape changes, or older games will break (this has happened before with `teamNames`). Backups are untrusted input: any new field must be coerced here and escaped with `esc()` where it is rendered.
