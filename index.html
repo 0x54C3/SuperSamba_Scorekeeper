@@ -429,17 +429,17 @@ const playedCount=g=>g.rounds.filter(hasData).length;
 function startTab(g){let i=0;g.rounds.forEach((rd,k)=>{if(hasData(rd))i=k});return i}
 
 function sampleGame(){
-  const S=r=>({type:'samba',range:r,suit:''}),W=j=>({type:'wild',jokers:j}),SV=()=>({type:'sevens'}),RD=r=>({type:'red',rank:r}),BK=(r,t,j)=>({type:'black',rank:r,twos:t,jokers:j});
+  const S=(r,suit)=>({type:'samba',range:r,suit}),W=j=>({type:'wild',jokers:j}),SV=()=>({type:'sevens'}),RD=r=>({type:'red',rank:r}),BK=(r,t,j)=>({type:'black',rank:r,twos:t,jokers:j});
   const T=(canastas,red3,table,out)=>({canastas,red3,draw30:0,out:!!out,table});
   const g=newGame([['Rosa','Miguel'],['June','Walt']]);
   g.created=Date.now()-86400000; g.sample=true;
   g.rounds=[
-    {teams:[T([S('4-A'),S('8-A'),S('8-A'),S('8-A'),W(3),W(2),SV(),RD('10'),RD('K'),RD('J'),RD('J'),RD('4'),RD('5'),RD('A'),BK('5',1,0)],7,130),
-            T([S('4-A'),S('8-A'),S('8-A'),S('8-A'),W(3),W(4),SV(),SV(),RD('A'),RD('6'),RD('J'),RD('Q'),RD('K'),BK('5',0,1),BK('8',3,0),BK('6',2,0)],7,90)]},
-    {teams:[T([S('4-A'),S('8-A'),W(3),SV(),RD('10'),RD('6'),RD('5'),RD('6'),BK('A',0,1),BK('J',1,0)],3,220,true),
-            T([S('4-A'),S('8-A'),S('8-A'),W(2),SV(),RD('A')],4,15)]},
-    {teams:[T([S('4-A'),S('7-K'),S('6-Q'),S('4-10'),W(1),W(3),SV(),RD('K'),RD('A'),RD('5'),RD('Q'),RD('10'),BK('8',0,1)],6,170,true),
-            T([S('4-A'),S('8-A'),S('8-A'),W(1),W(4),RD('6'),RD('4'),RD('5'),RD('A'),BK('Q',1,0)],4,180)]}
+    {teams:[T([S('4-A','H'),S('8-A','S'),S('8-A','D'),S('8-A','C'),W(3),W(2),SV(),RD('10'),RD('K'),RD('J'),RD('J'),RD('4'),RD('5'),RD('A'),BK('5',1,0)],7,130),
+            T([S('4-A','S'),S('8-A','H'),S('8-A','C'),S('8-A','D'),W(3),W(4),SV(),SV(),RD('A'),RD('6'),RD('J'),RD('Q'),RD('K'),BK('5',0,1),BK('8',3,0),BK('6',2,0)],7,90)]},
+    {teams:[T([S('4-A','D'),S('8-A','S'),W(3),SV(),RD('10'),RD('6'),RD('5'),RD('6'),BK('A',0,1),BK('J',1,0)],3,220,true),
+            T([S('4-A','C'),S('8-A','H'),S('8-A','D'),W(2),SV(),RD('A')],4,15)]},
+    {teams:[T([S('4-A','S'),S('7-K','H'),S('6-Q','C'),S('4-10','D'),W(1),W(3),SV(),RD('K'),RD('A'),RD('5'),RD('Q'),RD('10'),BK('8',0,1)],6,170,true),
+            T([S('4-A','H'),S('8-A','S'),S('8-A','C'),W(1),W(4),RD('6'),RD('4'),RD('5'),RD('A'),BK('Q',1,0)],4,180)]}
   ];
   return g;
 }
