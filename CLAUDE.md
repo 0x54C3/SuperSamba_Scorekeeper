@@ -16,7 +16,8 @@ The service worker only registers when `window.SAMBA_PWA` is true (set in a `<sc
 - A game: `{id, created, players:[[name,name]|[name]...], teamNames, names (derived), rules, rounds:[{teams:[T,...]}], sample?}`.
 - A side `T`: `{canastas:[{type,...,at}], red3, red3At[], draw30, draw30At[], out, outAt, table, hand, tableAt}`. `at` fields are timestamps for the Summary timeline.
 - Canasta types: `samba {range:'4-A'|'8-A'|..., suit:'S'|'H'|'D'|'C'}`, `wild {jokers}`, `sevens`, `red {rank}`, `black {rank, twos, jokers}`.
-- `migrate(g)` fills in fields that older saved games lack. Extend it whenever the data shape changes, or older games will break (this has happened before with `teamNames`).
+- `migrate(g)` rebuilds every field with a known type and range (`cleanRules`, `cleanCanasta`, `cleanTeam`, `cleanPlayers`) and fills in fields that older saved games lack. Extend it whenever the data shape changes, or older games will break (this has happened before with `teamNames`). Backups are untrusted input: any new field must be coerced here and escaped with `esc()` where it is rendered.
+- `<head>` carries a Content-Security-Policy meta tag that blocks all network connections and remote resources. Keep it when adding features, and never add an external script, style, font or image.
 
 ## Scoring (house rules, all editable on the Rules tab)
 

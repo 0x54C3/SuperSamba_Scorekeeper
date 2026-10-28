@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; manifest-src 'self'; worker-src 'self'; connect-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -371,12 +372,56 @@ function newGame(players,rules,tnames){
   setPlayers(g,pl,tnames);return g;
 }
 function normRules(r){const H=clone(HOUSE_RULES),o=Object.assign(H,clone(r||{}));for(const k of ['bonus','cards','req'])o[k]=Object.assign(clone(HOUSE_RULES[k]),(r&&r[k])||{});return o}
+/* Saved and imported games are untrusted: rebuild every field with a known type and range. */
+const num=(v,d)=>{const n=typeof v==='boolean'?NaN:Number(v);return Number.isFinite(n)?n:(d||0)};
+const str=v=>v==null?'':String(v);
+const stamp=v=>{const n=Number(v);return Number.isFinite(n)&&n>0?n:null};
+const stamps=a=>Array.isArray(a)?a.map(stamp).filter(Boolean):[];
+function cleanRules(r){
+  const o=normRules(r),H=HOUSE_RULES,out={};
+  for(const k of ['bonus','cards','req']){out[k]={};for(const j in H[k])out[k][j]=Math.max(0,num(o[k][j],H[k][j]))}
+  for(const k of ['maxWild','draw','meldStart','meldStep'])out[k]=Math.max(0,num(o[k],H[k]));
+  out.rounds=Math.max(1,Math.min(20,Math.round(num(o.rounds,H.rounds))));
+  out.black3=o.black3==='more'?'more':'exact';
+  return out;
+}
+function cleanCanasta(c){
+  if(!c||typeof c!=='object'||!TYPES.includes(c.type))return null;
+  const o={type:c.type};
+  if(c.type==='samba'){o.range=SAMBAS.includes(c.range)?c.range:'8-A';o.suit=SUITS[c.suit]?c.suit:''}
+  else if(c.type==='wild')o.jokers=Math.max(0,Math.min(7,num(c.jokers)));
+  else if(c.type==='red')o.rank=RANKS.includes(c.rank)?c.rank:'4';
+  else if(c.type==='black'){o.rank=RANKS.includes(c.rank)?c.rank:'4';o.twos=Math.max(0,num(c.twos));o.jokers=Math.max(0,num(c.jokers))}
+  const at=stamp(c.at);if(at)o.at=at;
+  return o;
+}
+function cleanTeam(t){
+  t=t&&typeof t==='object'?t:{};
+  const o=emptyTeam();
+  o.canastas=(Array.isArray(t.canastas)?t.canastas:[]).map(cleanCanasta).filter(Boolean);
+  o.red3=Math.max(0,num(t.red3));o.draw30=Math.max(0,num(t.draw30));o.out=!!t.out;
+  o.table=num(t.table);o.hand=Math.max(0,num(t.hand));
+  o.red3At=stamps(t.red3At);o.draw30At=stamps(t.draw30At);o.outAt=stamp(t.outAt);o.tableAt=stamp(t.tableAt);
+  return o;
+}
+const cleanSides=pl=>pl.slice(0,3).map(p=>(Array.isArray(p)?p:[p]).slice(0,2).map(str));
+function cleanPlayers(g){
+  let pl=Array.isArray(g.players)&&g.players.length?g.players:null;
+  if(!pl){const n=Array.isArray(g.names)?g.names:['',''];pl=n.map(x=>{const p=str(x).split(/\s*&\s*/);return[p[0]||'',p[1]||'']})}
+  pl=cleanSides(pl);while(pl.length<2)pl.push(['']);
+  return pl;
+}
 function migrate(g){
-  g.rules=normRules(g.rules);
-  if(!Array.isArray(g.players)||!g.players.length){const n=g.names||['',''];g.players=n.map(x=>{const p=String(x).split(/\s*&\s*/);return[p[0]||'',p[1]||'']})}
+  g.id=str(g.id)||uid();g.created=stamp(g.created)||Date.now();
+  g.rules=cleanRules(g.rules);
+  g.players=cleanPlayers(g);
+  if(g.pairStash!=null){if(Array.isArray(g.pairStash))g.pairStash=cleanSides(g.pairStash);else delete g.pairStash}
+  if(g.sample!=null)g.sample=!!g.sample;
   // fill in anything older versions didn't save, and rebuild display names
-  setPlayers(g,g.players,Array.isArray(g.teamNames)?g.teamNames:[]);
-  (g.rounds||[]).forEach(rd=>{while(rd.teams.length<g.players.length)rd.teams.push(emptyTeam());rd.teams.forEach(t=>{t.canastas=t.canastas||[];if(t.hand==null)t.hand=0})});
+  setPlayers(g,g.players,Array.isArray(g.teamNames)?g.teamNames.map(str):[]);
+  const n=g.players.length;
+  g.rounds=(Array.isArray(g.rounds)?g.rounds:[]).map(rd=>{const teams=(rd&&Array.isArray(rd.teams)?rd.teams:[]).slice(0,n).map(cleanTeam);while(teams.length<n)teams.push(emptyTeam());return{teams}});
+  while(g.rounds.length<1)g.rounds.push(emptyRound(n));
   return g;
 }
 const hasData=rd=>rd.teams.some(t=>t.canastas.length||t.red3||Number(t.draw30)||t.out||Number(t.table)||Number(t.hand));
@@ -473,12 +518,12 @@ function renderTabs(){
 
 function cardFace(c,small){const mini=small?' mini':'';
   switch(c.type){
-    case 'samba':{const su=SUITS[c.suit],ink=su?(su.red?'sr':'sb'):'sn',pip=su?`<i>${su.sym}</i>`:'';const [a,z]=c.range.split('-');const sup=c.range==='4-A';
-      return `<span class="run${mini}${sup?' super':''}" title="${sup?'Super Samba':'Samba'} ${rangeLabel(c.range)}${su?' of '+su.name:''}"><span class="pc ${ink}"><b>${a}</b>${pip}</span><span class="pc ${ink}"><b>${z}</b>${pip}</span></span>`}
-    case 'wild':return `<span class="card wild${mini}"><b>W</b><i>${c.jokers}J</i></span>`;
+    case 'samba':{const su=SUITS[c.suit],ink=su?(su.red?'sr':'sb'):'sn',pip=su?`<i>${su.sym}</i>`:'';const [a,z]=String(c.range).split('-').map(esc);const sup=c.range==='4-A';
+      return `<span class="run${mini}${sup?' super':''}" title="${sup?'Super Samba':'Samba'} ${esc(rangeLabel(String(c.range)))}${su?' of '+su.name:''}"><span class="pc ${ink}"><b>${a}</b>${pip}</span><span class="pc ${ink}"><b>${z}</b>${pip}</span></span>`}
+    case 'wild':return `<span class="card wild${mini}"><b>W</b><i>${esc(c.jokers)}J</i></span>`;
     case 'sevens':return `<span class="card sevens${mini}" title="7s canasta"><b>7</b><i>7s</i></span>`;
-    case 'red':return `<span class="card red${mini}" title="Red canasta of ${c.rank}s"><b>${c.rank}</b><i class="sr">♥</i></span>`;
-    case 'black':return `<span class="card black${mini}" title="Black canasta of ${c.rank}s"><b>${c.rank}</b><i class="sb">♠</i></span>`;
+    case 'red':return `<span class="card red${mini}" title="Red canasta of ${esc(c.rank)}s"><b>${esc(c.rank)}</b><i class="sr">♥</i></span>`;
+    case 'black':return `<span class="card black${mini}" title="Black canasta of ${esc(c.rank)}s"><b>${esc(c.rank)}</b><i class="sb">♠</i></span>`;
   }
 }
 function canastaText(c){
@@ -526,7 +571,7 @@ function panel(g,ri,ti,sc){
     <div class="ptop"><h2>${esc(g.names[ti])}</h2><div class="rt" id="rt${ti}">${fmt(sc.total)}</div>
       <div class="sub">${allOk?'Has everything needed to go out':'Needed to go out'}</div><div class="sub r">round total</div>
       <div class="reqs">${reqs}</div>
-      ${order.length||T.red3?`<div class="done" aria-label="Completed">${order.map(({c})=>cardFace(c,true)).join('')}${T.red3?`<span class="card red mini r3" title="${T.red3} red 3s"><b>3</b><i class="sr">♥</i><em>×${T.red3}</em></span>`:''}</div>`:''}</div>
+      ${order.length||T.red3?`<div class="done" aria-label="Completed">${order.map(({c})=>cardFace(c,true)).join('')}${T.red3?`<span class="card red mini r3" title="${esc(T.red3)} red 3s"><b>3</b><i class="sr">♥</i><em>×${esc(T.red3)}</em></span>`:''}</div>`:''}</div>
     <div class="sec"><h3>Canastas <span id="cs${ti}">${fmt(sc.canasta)}</span></h3>
       <div class="adds above">
         <button class="add" data-act="add" data-t="${ti}" data-type="samba">+ Samba</button>
@@ -676,7 +721,7 @@ function chart(g,per){
 /* ---------- rules ---------- */
 function rulesView(g){
   const R=g.rules;
-  const f=(path,label,hint)=>{const v=path.split('.').reduce((o,k)=>o[k],R);return `<div class="field"><label for="r_${path}">${label}${hint?`<small>${hint}</small>`:''}</label><input id="r_${path}" inputmode="numeric" data-rule="${path}" value="${v}"></div>`};
+  const f=(path,label,hint)=>{const v=path.split('.').reduce((o,k)=>o[k],R);return `<div class="field"><label for="r_${path}">${label}${hint?`<small>${hint}</small>`:''}</label><input id="r_${path}" inputmode="numeric" data-rule="${path}" value="${esc(v)}"></div>`};
   return `<div class="sumhead"><h1>Rules</h1><p>These apply to the game that is open now. Totals update as you change them.</p></div>
   <div class="forms">
     <div class="block"><h2>Players</h2>
@@ -684,7 +729,7 @@ function rulesView(g){
       <div class="pgroups">${g.players.map((pl,i)=>`<div class="pgroup ${LET[i]}" role="group" aria-label="${SIDE_COLOR[i]}">${pl.length>1?`<input class="ngin tn" id="tn${i}" data-tn="${i}" value="${esc(g.teamNames[i]||'')}" placeholder="Team name (optional)" autocomplete="off" aria-label="${SIDE_COLOR[i]} team name">`:''}${pl.map((v,j)=>`<input class="ngin" id="pl${i}${j}" data-pl="${i}${j}" value="${esc(v)}" placeholder="Player ${pl.length>1?j+1:i+1}" autocomplete="off" aria-label="${SIDE_COLOR[i]}, player ${j+1}">`).join('')}</div>`).join('')}</div>
     </div>
     <div class="block"><h2>Game setup</h2>
-      <div class="field"><label for="r_rounds">Number of rounds<small>House rule is 3</small></label><input id="r_rounds" inputmode="numeric" data-rule="rounds" value="${R.rounds}"></div>
+      <div class="field"><label for="r_rounds">Number of rounds<small>House rule is 3</small></label><input id="r_rounds" inputmode="numeric" data-rule="rounds" value="${esc(R.rounds)}"></div>
       ${f('draw','Cards drawn per turn','From a draw pile')}
       ${f('meldStart','First meld in round 1','Points needed before you can lay down')}
       ${f('meldStep','First meld goes up each round by',Array.from({length:R.rounds},(_,i)=>'R'+(i+1)+' '+fmt(meldFor(R,i))).join(' · '))}
@@ -695,7 +740,7 @@ function rulesView(g){
     </div>
     <div class="block"><h2>Other bonuses</h2>
       ${f('bonus.red3','Each red 3')}${f('bonus.draw30','Drawing exactly 30','Per player')}${f('bonus.out','Going out')}
-      <div class="field"><label for="r_maxWild">Most wilds in a black canasta<small>Naturals must outnumber wilds, so 3 at most</small></label><input id="r_maxWild" inputmode="numeric" data-rule="maxWild" value="${R.maxWild}"></div>
+      <div class="field"><label for="r_maxWild">Most wilds in a black canasta<small>Naturals must outnumber wilds, so 3 at most</small></label><input id="r_maxWild" inputmode="numeric" data-rule="maxWild" value="${esc(R.maxWild)}"></div>
     </div>
     <div class="block"><h2>Card values</h2>
       ${f('cards.low','3 through 7')}${f('cards.mid','8 through K')}${f('cards.ace','Ace')}${f('cards.two','2 (wild)')}${f('cards.joker','Joker')}
@@ -1005,9 +1050,9 @@ document.addEventListener('input',e=>{
 document.addEventListener('change',e=>{
   const t=e.target;
   if(t.dataset.rule==='rounds'){const g=game();while(g.rounds.length<g.rules.rounds)g.rounds.push(emptyRound(nT(g)));t.value=g.rules.rounds;renderTabs();save();return}
-  if(t.id==='importFile'&&t.files&&t.files[0]){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);const list=Array.isArray(d.games)?d.games:[d];let n=0;
-      list.forEach(x=>{if(x&&Array.isArray(x.rounds)&&Array.isArray(x.names)){x.id=uid();migrate(x);store.games.push(x);store.currentId=x.id;n++}});
-      if(n){tab=startTab(game());render();toast(n===1?'Game restored':n+' games restored')}else toast('That file is not a Samba backup')}catch(err){toast('That file is not a Samba backup')}};r.readAsText(t.files[0])}
+  if(t.id==='importFile'&&t.files&&t.files[0]){const r=new FileReader();r.onload=()=>{const added=[];try{const d=JSON.parse(r.result);const list=Array.isArray(d&&d.games)?d.games:[d];
+      list.forEach(x=>{if(!x||typeof x!=='object'||!Array.isArray(x.rounds)||!(Array.isArray(x.names)||Array.isArray(x.players)))return;try{const g=migrate(clone(x));g.id=uid();added.push(g)}catch(e){}})}catch(err){}
+      if(added.length){added.forEach(g=>store.games.push(g));store.currentId=added[added.length-1].id;save();tab=startTab(game());render();toast(added.length===1?'Game restored':added.length+' games restored')}else toast('That file is not a Samba backup')};r.readAsText(t.files[0])}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheetWrap').hidden)closePicker()});
 
