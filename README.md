@@ -25,9 +25,19 @@ A scorekeeper for SuperSamba, the Samba card game played with a Super Samba (4 t
 <td><em>How to play, dark theme</em></td>
 <td><em>Games, back up and restore</em></td>
 </tr>
+<tr>
+<td colspan="2"><img src="screenshots/samba-picker-light.png" alt="Adding a Samba: pick the suit, then the run. Suits already used this round are marked done."></td>
+</tr>
+<tr>
+<td colspan="2"><em>Adding a Samba: pick the suit, then the run</em></td>
+</tr>
 </table>
 
-<p align="center"><img src="screenshots/phone-round-dark.png" width="320" alt="Round 3 on an iPhone-sized screen in dark mode, with one side shown at a time"><br><em>On a phone, one side at a time</em></p>
+<p align="center">
+<img src="screenshots/phone-round-dark.png" width="320" alt="Round 3 on an iPhone-sized screen in dark mode, with one side shown at a time">
+<img src="screenshots/phone-samba-picker-dark.png" width="320" alt="The Samba picker on an iPhone-sized screen in dark mode">
+<br><em>On a phone: one side at a time, and the Samba picker</em>
+</p>
 
 ## Use it on Apple devices
 

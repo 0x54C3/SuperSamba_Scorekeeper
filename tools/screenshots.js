@@ -25,6 +25,9 @@ const SHOTS = [
   { name: 'howto-dark',       viewport: IPAD,  scheme: 'dark',  tab: 'howto' },
   { name: 'games-light',      viewport: IPAD,  scheme: 'light', tab: 'games' },
   { name: 'phone-round-dark', viewport: PHONE, scheme: 'dark',  tab: '2', mobile: true },
+  // The Samba picker: pick a suit, then the run. Shown with Diamonds already chosen.
+  { name: 'samba-picker-light', viewport: IPAD,  scheme: 'light', tab: '1', picker: { team: 0, type: 'samba', suit: 'D' } },
+  { name: 'phone-samba-picker-dark', viewport: PHONE, scheme: 'dark', tab: '1', mobile: true, picker: { team: 0, type: 'samba', suit: 'D' } },
 ];
 
 function serve() {
@@ -57,6 +60,11 @@ function serve() {
     await page.goto(url, { waitUntil: 'load' });
     await page.waitForSelector('#tabs .tab');
     await page.click(`#tabs [data-act="tab"][data-v="${s.tab}"]`);
+    if (s.picker) {
+      await page.click(`[data-act="add"][data-t="${s.picker.team}"][data-type="${s.picker.type}"]`);
+      await page.waitForSelector('#sheetWrap:not([hidden])');
+      if (s.picker.suit) await page.click(`[data-act="pickSuit"][data-v="${s.picker.suit}"]`);
+    }
     await page.waitForTimeout(400);
     await page.screenshot({ path: path.join(OUT, s.name + '.png') });
     const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
