@@ -7,6 +7,7 @@ Offline scorekeeper for a family's SuperSamba card game, used on an iPad as a ho
 - `index.html`: the entire app (HTML, CSS and JS in one file, no build step, no external requests).
 - `sw.js`: service worker that caches the app for offline use. Network-first, falls back to cache. **Bump `CACHE` (e.g. `supersamba-v21` → `v22`) whenever any file changes.**
 - `manifest.webmanifest`, `icon-180/192/512.png`: home-screen name and icons.
+- `screenshots/`: README images only, not part of the app and not cached by the service worker. Taken with headless Chromium at 1180×820 (iPad) and 390×844 (phone), device scale 2, from the example game.
 
 The service worker only registers when `window.SAMBA_PWA` is true (set in a `<script>` in `<head>`) and the page is served over http(s).
 

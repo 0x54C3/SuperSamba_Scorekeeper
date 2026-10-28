@@ -4,6 +4,31 @@ A scorekeeper for SuperSamba, the Samba card game played with a Super Samba (4 t
 
 **Open it:** https://0x54c3.github.io/SuperSamba_Scorekeeper/
 
+![Round 1 of the example game on an iPad, with both teams' canastas and totals](screenshots/round-light.png)
+
+## Screenshots
+
+<table>
+<tr>
+<td width="50%"><img src="screenshots/summary-dark.png" alt="Summary tab in dark mode: round-by-round table, running total chart and where the points came from"></td>
+<td width="50%"><img src="screenshots/rules-light.png" alt="Rules tab: players, game setup, canasta bonuses and other house rules, all editable"></td>
+</tr>
+<tr>
+<td><em>Summary, dark theme</em></td>
+<td><em>Rules</em></td>
+</tr>
+<tr>
+<td><img src="screenshots/howto-dark.png" alt="How to play tab in dark mode with editable sections"></td>
+<td><img src="screenshots/games-light.png" alt="Games tab with the saved game list, back up and restore buttons"></td>
+</tr>
+<tr>
+<td><em>How to play, dark theme</em></td>
+<td><em>Games, back up and restore</em></td>
+</tr>
+</table>
+
+<p align="center"><img src="screenshots/phone-round-dark.png" width="320" alt="Round 3 on an iPhone-sized screen in dark mode, with one side shown at a time"><br><em>On a phone, one side at a time</em></p>
+
 ## Use it on Apple devices
 
 The app runs in Safari and can be installed like a regular app. Installing it is what makes it work offline, so do this rather than bookmarking the link.
