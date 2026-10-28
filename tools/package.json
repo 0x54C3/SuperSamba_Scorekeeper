@@ -1,0 +1,11 @@
+{
+  "name": "supersamba-tools",
+  "private": true,
+  "description": "Developer tools for SuperSamba Scorekeeper. Not part of the app.",
+  "scripts": {
+    "screenshots": "node screenshots.js"
+  },
+  "devDependencies": {
+    "playwright": "1.49.1"
+  }
+}

@@ -67,6 +67,7 @@ This does not work well on iPad or iPhone. Safari cannot install a home-screen a
 | `sw.js` | Saves the app on the device so it works offline |
 | `manifest.webmanifest` | Name and icon for the home screen |
 | `icon-*.png` | App icons |
+| `screenshots/`, `tools/` | README images and the script that makes them. Not part of the app. |
 
 ## Updating
 
